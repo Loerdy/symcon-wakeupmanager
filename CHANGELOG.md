@@ -11,6 +11,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Grundgerüst der Library `WakeUpManager` mit den Modulen `WakeUpManager` (Wecker) und `WakeUpActions` (zentrale Aktionen), Präfix `WUM`, Mindestversion IP-Symcon 9.1.
 - Wecker-Konfiguration: globaler Aktiv-Schalter, Weckzeit und aktive Wochentage.
 - Zentrale Aktionsliste mit frei wählbarer IP-Symcon-Aktion und automatisch vergebener, fester ID.
+- Gruppen für zentrale Aktionen (Lampen, Rollläden, Heizung, Sonstiges, Skripte); der Wecker zeigt die Aktionen nach Gruppen sortiert.
 - Auswahl der zentralen Aktionen pro Wecker mit eigenem Zeitversatz in Minuten relativ zur Weckzeit.
 - Ein einzelner Timer auf den nächsten fälligen Zeitpunkt; Neuberechnung nach Konfigurationsänderung, IP-Symcon-Start und jedem Auslösen.
 - Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt; verpasste Zeitpunkte werden nur innerhalb von 5 Minuten nachgeholt.

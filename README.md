@@ -28,7 +28,7 @@ https://github.com/Loerdy/symcon-wakeupmanager
 
 ## Zentrale Aktionen (WakeUpActions)
 
-Jede Aktion besteht aus einer **Bezeichnung** (z. B. „Schlafzimmerlicht an“) und einer beliebigen **IP-Symcon-Aktion** inklusive Ziel. Jede Aktion erhält beim Anlegen automatisch eine feste ID. Umbenennen, Umsortieren oder das Ändern der Aktion wirkt sich deshalb sofort auf alle Wecker aus, ohne dass die Auswahl in den Weckern verloren geht.
+Jede Aktion besteht aus einer **Gruppe** (Lampen, Rollläden, Heizung, Sonstiges, Skripte), einer **Bezeichnung** (z. B. „Schlafzimmerlicht an“) und einer beliebigen **IP-Symcon-Aktion** inklusive Ziel. Im Wecker werden die Aktionen nach Gruppen sortiert angezeigt. Aktionen ohne Gruppe gelten als „Sonstiges“. Jede Aktion erhält beim Anlegen automatisch eine feste ID. Umbenennen, Umsortieren oder das Ändern der Aktion wirkt sich deshalb sofort auf alle Wecker aus, ohne dass die Auswahl in den Weckern verloren geht.
 
 ## Wecker (WakeUpManager)
 

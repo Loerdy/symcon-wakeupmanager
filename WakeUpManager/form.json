@@ -49,6 +49,12 @@
             "delete": true,
             "columns": [
                 {
+                    "caption": "Gruppe",
+                    "name": "Group",
+                    "width": "140px",
+                    "save": false
+                },
+                {
                     "caption": "Aktion",
                     "name": "Name",
                     "width": "auto",

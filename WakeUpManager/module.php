@@ -25,6 +25,15 @@ class WakeUpManager extends IPSModuleStrict
         7 => 'Sunday'
     ];
 
+    // Gruppen der zentralen Aktionen in Anzeigereihenfolge; die Schlüssel werden gespeichert und nicht übersetzt.
+    private const GROUPS = [
+        'light'   => 'Lampen',
+        'shutter' => 'Rollläden',
+        'heating' => 'Heizung',
+        'other'   => 'Sonstiges',
+        'script'  => 'Skripte'
+    ];
+
     private const STATUS_INVALID_TIME = 201;
     private const STATUS_NO_WEEKDAY = 202;
     private const STATUS_INVALID_ACTIONS = 203;
@@ -155,13 +164,21 @@ class WakeUpManager extends IPSModuleStrict
         return $html;
     }
 
-    // Eine Zeile je zentraler Aktion; Auswahlen, deren zentrale Aktion nicht mehr existiert, bleiben löschbar erhalten.
+    // Eine Zeile je zentraler Aktion, nach Gruppen sortiert (innerhalb einer Gruppe in zentraler Reihenfolge);
+    // Auswahlen, deren zentrale Aktion nicht mehr existiert, bleiben löschbar am Ende erhalten.
     private function BuildSelectionRows(array $catalog, array $selection): array
     {
+        $groupOrder = array_flip(array_keys(self::GROUPS));
+        $order = array_flip(array_keys($catalog));
+        uksort($catalog, static function ($a, $b) use ($catalog, $groupOrder, $order): int {
+            return [$groupOrder[$catalog[$a]['group']], $order[$a]] <=> [$groupOrder[$catalog[$b]['group']], $order[$b]];
+        });
+
         $rows = [];
         foreach ($catalog as $id => $action) {
             $rows[] = [
                 'ID'        => $id,
+                'Group'     => self::GROUPS[$action['group']],
                 'Name'      => $action['name'],
                 'Active'    => $selection[$id]['Active'] ?? false,
                 'Offset'    => $selection[$id]['Offset'] ?? 0,
@@ -172,6 +189,7 @@ class WakeUpManager extends IPSModuleStrict
             if (!isset($catalog[$id])) {
                 $rows[] = [
                     'ID'        => $id,
+                    'Group'     => '',
                     'Name'      => 'Nicht mehr vorhanden',
                     'Active'    => $entry['Active'],
                     'Offset'    => $entry['Offset'],
@@ -343,6 +361,11 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             $name = is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $label;
+            // Einträge ohne oder mit unbekannter Gruppe zählen als "Sonstiges".
+            $group = $row['Group'] ?? 'other';
+            if (!is_string($group) || !isset(self::GROUPS[$group])) {
+                $group = 'other';
+            }
 
             // Der Wert von SelectAction ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
             $action = $row['Action'] ?? null;
@@ -355,6 +378,7 @@ class WakeUpManager extends IPSModuleStrict
             }
             $catalog[$id] = [
                 'name'       => $name,
+                'group'      => $group,
                 'actionID'   => $valid ? $action['actionID'] : null,
                 'parameters' => $valid ? ($action['parameters'] ?? []) : []
             ];

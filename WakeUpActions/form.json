@@ -20,6 +20,22 @@
                     "save": true
                 },
                 {
+                    "caption": "Gruppe",
+                    "name": "Group",
+                    "width": "160px",
+                    "add": "other",
+                    "edit": {
+                        "type": "Select",
+                        "options": [
+                            { "caption": "Lampen", "value": "light" },
+                            { "caption": "Rollläden", "value": "shutter" },
+                            { "caption": "Heizung", "value": "heating" },
+                            { "caption": "Sonstiges", "value": "other" },
+                            { "caption": "Skripte", "value": "script" }
+                        ]
+                    }
+                },
+                {
                     "caption": "Bezeichnung",
                     "name": "Name",
                     "width": "auto",
@@ -29,6 +45,13 @@
             ],
             "form": [
                 "return [",
+                "    ['type' => 'Select', 'name' => 'Group', 'caption' => 'Gruppe', 'options' => [",
+                "        ['caption' => 'Lampen', 'value' => 'light'],",
+                "        ['caption' => 'Rollläden', 'value' => 'shutter'],",
+                "        ['caption' => 'Heizung', 'value' => 'heating'],",
+                "        ['caption' => 'Sonstiges', 'value' => 'other'],",
+                "        ['caption' => 'Skripte', 'value' => 'script']",
+                "    ]],",
                 "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Bezeichnung', 'width' => '400px'],",
                 "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Aktion', 'width' => '600px']",
                 "];"
