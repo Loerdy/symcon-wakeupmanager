@@ -36,15 +36,24 @@ Aktionen aus der früheren gemeinsamen Liste werden beim Modul-Update automatisc
 
 ## Wecker (WakeUpManager)
 
+**Einrichtung** (oberer Bereich, wirksam mit **Übernehmen**):
+
+| Einstellung | Beschreibung |
+| --- | --- |
+| Zentrale Aktionen | Die WakeUpActions-Instanz, aus der Aktionen ausgewählt werden. |
+
+**Einstellungen** (unterer Bereich, werden **sofort gespeichert** – dieselben Einstellungen sind später auch in der Kachel bedienbar):
+
 | Einstellung | Beschreibung |
 | --- | --- |
 | Wecker aktiv | Globaler Ein/Aus-Schalter. Neue Instanzen sind deaktiviert. |
-| Weckzeit | Uhrzeit des Weckens (Standard 06:30). |
+| Weckzeit | Uhrzeit des Weckens (Standard 06:30), gespeichert über **Weckzeit speichern**. |
 | Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr). |
-| Zentrale Aktionen | Die WakeUpActions-Instanz, aus der Aktionen ausgewählt werden. |
 | Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe eine Liste der zentralen Aktionen mit **Ausführen** (an/aus); bei Heizung zusätzlich **Zeitversatz**. Leere Gruppen werden ausgeblendet. |
 
-Nach Auswahl der zentralen Instanz einmal **Übernehmen**, danach erscheinen die Aktionen zur Auswahl.
+Nach Auswahl der zentralen Instanz einmal **Übernehmen**, danach erscheinen die Aktionen zur Auswahl. Alle Eingaben werden vom Modul geprüft; ungültige Werte werden abgelehnt.
+
+Bei einem Update von einer früheren Entwicklungsversion werden Aktiv-Schalter, Weckzeit, Wochentage und Aktionsauswahl automatisch übernommen.
 
 Aktionen der Gruppen Lampen, Rollläden, Sonstiges und Skripte werden **zur Weckzeit** ausgeführt. Nur bei **Heizung** wird pro Wecker ein **Zeitversatz** in Minuten festgelegt (−1440 bis 1440): negativ = vorher (z. B. −60), 0 = zur Weckzeit, positiv = danach. Ein negativer Zeitversatz kann auf den Vortag fallen: Bei Weckzeit 06:30 an einem Montag und −480 Minuten wird die Aktion am Sonntag um 22:30 ausgeführt. Maßgeblich ist, ob der Tag der **Weckzeit** aktiv ist.
 
@@ -76,6 +85,7 @@ Der Wecker stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre ei
 | 202 | Es ist kein Wochentag aktiviert |
 | 203 | Die Aktionsauswahl ist nicht lesbar |
 | 204 | Die zentralen Aktionen sind nicht verfügbar (Instanz gelöscht, falscher Typ oder Liste nicht lesbar) |
+| 205 | Die gespeicherten Wochentage sind nicht lesbar (bleiben unverändert erhalten) |
 
 **WakeUpActions**
 

@@ -25,7 +25,7 @@ class WakeUpManager extends IPSModuleStrict
         7 => 'Sunday'
     ];
 
-    // Eigenschaft je Gruppe, gleichnamig in WakeUpActions (Aktionen) und hier (Auswahl); die Gruppenschlüssel
+    // Eigenschaft je Gruppe in WakeUpActions und gleichnamige Liste im Formular hier; die Gruppenschlüssel
     // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz.
     private const GROUP_PROPERTIES = [
         'light'   => 'ActionsLight',
@@ -36,29 +36,29 @@ class WakeUpManager extends IPSModuleStrict
     ];
     private const OFFSET_GROUP = 'heating';
 
-    // Frühere gemeinsame Auswahlliste; wird per Migrate übernommen.
+    // Frühere gemeinsame Auswahlliste (vor den Gruppen); wird per Migrate übernommen.
     private const LEGACY_PROPERTY = 'Actions';
 
     private const STATUS_INVALID_TIME = 201;
     private const STATUS_NO_WEEKDAY = 202;
     private const STATUS_INVALID_ACTIONS = 203;
     private const STATUS_CATALOG_UNAVAILABLE = 204;
+    private const STATUS_INVALID_WEEKDAYS = 205;
 
     public function Create(): void
     {
         parent::Create();
 
-        $this->RegisterPropertyBoolean('Active', false);
-        $this->RegisterPropertyString('WakeUpTime', '{"hour":6,"minute":30,"second":0}');
-        foreach (self::WEEKDAYS as $day => $name) {
-            $this->RegisterPropertyBoolean($name, $day <= 5);
-        }
+        // Einrichtung über die Konsole ("Übernehmen")
         $this->RegisterPropertyInteger('ActionInstance', 0);
-        // Auswahl aus den zentralen Aktionen je Gruppe: [{"ID": "<ID der zentralen Aktion>", "Active": bool, "Offset": Minuten}, ...]
-        foreach (self::GROUP_PROPERTIES as $property) {
-            $this->RegisterPropertyString($property, '[]');
-        }
-        $this->RegisterPropertyString(self::LEGACY_PROPERTY, '[]');
+
+        // Einstellungen für die tägliche Bedienung (Kachel und Konsole) werden vom Modul nach Prüfung sofort gespeichert.
+        $this->RegisterAttributeBoolean('Active', false);
+        $this->RegisterAttributeString('WakeUpTime', '{"hour":6,"minute":30,"second":0}');
+        // Aktive Wochentage als ISO-8601-Nummern (1 = Montag)
+        $this->RegisterAttributeString('Weekdays', '[1,2,3,4,5]');
+        // Auswahl aus den zentralen Aktionen: [{"ID": "<ID der zentralen Aktion>", "Active": bool, "Offset": Minuten}, ...]
+        $this->RegisterAttributeString('Selection', '[]');
 
         // Ende des zuletzt abgearbeiteten Zeitfensters (Unix-Zeitstempel); -1 = Wecker war deaktiviert, nichts nachholen.
         $this->RegisterAttributeInteger('LastProcessed', -1);
@@ -71,39 +71,96 @@ class WakeUpManager extends IPSModuleStrict
         $this->SetVisualizationType(INSTANCE_VISUALIZATION_TYPE_HTML_FULLSCREEN);
     }
 
-    // Übernimmt die frühere gemeinsame Auswahlliste nach "ActionsOther". Die Zuordnung zur Gruppe erfolgt über die ID,
-    // daher ist die Gruppe der Speicherstelle unerheblich; beim nächsten Speichern des Formulars wird neu verteilt.
+    // Übernimmt die Einstellungen aus den früheren Eigenschaften (Active, WakeUpTime, Monday..Sunday, Auswahllisten je
+    // Gruppe bzw. gemeinsame Altliste) einmalig in die Attribute. Bereits vorhandene Attribute werden nie überschrieben.
     public function Migrate(string $JSONData): string
     {
         parent::Migrate($JSONData);
 
-        $data = json_decode($JSONData, true);
-        if (!is_array($data) || !isset($data['configuration']) || !is_array($data['configuration'])) {
+        // Als Objekte dekodieren, damit leere JSON-Objekte nicht als Listen zurückgeschrieben werden.
+        $data = json_decode($JSONData);
+        if (!is_object($data) || !isset($data->configuration) || !is_object($data->configuration)) {
             return '';
         }
-        $configuration = $data['configuration'];
+        $configuration = $data->configuration;
+        if (!isset($data->attributes) || !is_object($data->attributes)) {
+            $data->attributes = new stdClass();
+        }
+        $attributes = $data->attributes;
+        $changed = false;
 
-        $legacy = $this->DecodeList($configuration[self::LEGACY_PROPERTY] ?? '[]');
-        if ($legacy === null || count($legacy) === 0) {
-            // Nicht lesbare Altdaten bleiben unverändert erhalten (Status 203).
-            return '';
+        if (!property_exists($attributes, 'Active') && is_bool($configuration->Active ?? null)) {
+            $attributes->Active = $configuration->Active;
+            $changed = true;
         }
-        foreach (self::GROUP_PROPERTIES as $property) {
-            $current = $this->DecodeList($configuration[$property] ?? '[]');
-            if ($current === null || count($current) > 0) {
-                return '';
+        if (!property_exists($attributes, 'WakeUpTime') && is_string($configuration->WakeUpTime ?? null)) {
+            $attributes->WakeUpTime = $configuration->WakeUpTime;
+            $changed = true;
+        }
+        if (!property_exists($attributes, 'Weekdays')) {
+            $found = false;
+            $days = [];
+            foreach (self::WEEKDAYS as $day => $name) {
+                if (property_exists($configuration, $name)) {
+                    $found = true;
+                    if ($configuration->$name === true) {
+                        $days[] = $day;
+                    }
+                } elseif ($day <= 5) {
+                    // Fehlender Wochentag: bisheriger Standardwert (Mo–Fr aktiv)
+                    $days[] = $day;
+                }
+            }
+            if ($found) {
+                $attributes->Weekdays = json_encode($days);
+                $changed = true;
+            }
+        }
+        if (!property_exists($attributes, 'Selection')) {
+            $selection = $this->MigrateSelection($configuration);
+            if ($selection !== null) {
+                $attributes->Selection = $selection;
+                $changed = true;
             }
         }
 
-        $encoded = json_encode($legacy);
-        if ($encoded === false || json_decode($encoded, true) !== $legacy) {
+        if (!$changed) {
             return '';
         }
-        $data['configuration'][self::GROUP_PROPERTIES['other']] = $encoded;
-        $data['configuration'][self::LEGACY_PROPERTY] = '[]';
-
         $result = json_encode($data);
         return $result === false ? '' : $result;
+    }
+
+    // Führt die früheren Auswahllisten (je Gruppe und gemeinsame Altliste) zu einer Liste zusammen; der erste Eintrag
+    // je ID gilt. Ist eine Liste nicht lesbar, wird deren Originalinhalt unverändert übernommen (Status 203 statt
+    // stillem Verlust). Einträge ohne ID (Format vor den zentralen Aktionen) sind nicht zuordenbar und entfallen.
+    private function MigrateSelection(object $configuration): ?string
+    {
+        $present = false;
+        $rows = [];
+        $seen = [];
+        foreach ([...array_values(self::GROUP_PROPERTIES), self::LEGACY_PROPERTY] as $property) {
+            if (!property_exists($configuration, $property)) {
+                continue;
+            }
+            $present = true;
+            $list = $this->DecodeList($configuration->$property);
+            if ($list === null) {
+                return is_string($configuration->$property) ? $configuration->$property : (string) json_encode($configuration->$property);
+            }
+            foreach ($list as $row) {
+                $id = is_array($row) ? ($row['ID'] ?? null) : null;
+                if (is_string($id) && $id !== '' && !isset($seen[$id])) {
+                    $seen[$id] = true;
+                    $rows[] = $row;
+                }
+            }
+        }
+        if (!$present) {
+            return null;
+        }
+        $encoded = json_encode($rows);
+        return $encoded === false ? null : $encoded;
     }
 
     public function ApplyChanges(): void
@@ -169,6 +226,34 @@ class WakeUpManager extends IPSModuleStrict
             case 'ProcessTimer':
                 $this->Process();
                 break;
+            case 'SetActive':
+                if (!is_bool($Value)) {
+                    $this->RejectValue($Ident);
+                }
+                $this->UpdateSettings(fn () => $this->WriteAttributeBoolean('Active', $Value));
+                break;
+            case 'SetWakeUpTime':
+                $time = $this->ParseTime($Value);
+                if ($time === null) {
+                    $this->RejectValue($Ident);
+                }
+                $this->UpdateSettings(fn () => $this->WriteAttributeString('WakeUpTime', json_encode($time)));
+                break;
+            case 'SetWeekday':
+                $this->SetWeekday($this->DecodeObject($Value));
+                break;
+            case 'SetAction':
+                $this->SetAction($this->DecodeObject($Value));
+                break;
+            case 'DeleteAction':
+                if (!is_string($Value) || $Value === '') {
+                    $this->RejectValue($Ident);
+                }
+                $this->UpdateSelection(static function (array $selection) use ($Value): array {
+                    unset($selection[$Value]);
+                    return $selection;
+                });
+                break;
             case 'TileProbe':
                 // Vorläufig: Messwerte der Test-Kachel nur protokollieren.
                 if (is_string($Value)) {
@@ -180,50 +265,212 @@ class WakeUpManager extends IPSModuleStrict
         }
     }
 
+    private function SetWeekday(?array $value): void
+    {
+        $day = $value['Day'] ?? null;
+        $active = $value['Active'] ?? null;
+        if (!is_int($day) || !isset(self::WEEKDAYS[$day]) || !is_bool($active)) {
+            $this->RejectValue('SetWeekday');
+        }
+        $this->UpdateSettings(function () use ($day, $active): void {
+            $weekdays = $this->LoadWeekdays();
+            if ($weekdays === null) {
+                // Nicht lesbare gespeicherte Wochentage nicht überschreiben.
+                throw new Exception($this->Translate('The weekdays cannot be read'));
+            }
+            $weekdays[$day] = $active;
+            ksort($weekdays);
+            $this->WriteAttributeString('Weekdays', json_encode(array_keys(array_filter($weekdays))));
+        });
+    }
+
+    private function SetAction(?array $value): void
+    {
+        $id = $value['ID'] ?? null;
+        if (!is_string($id) || $id === '') {
+            $this->RejectValue('SetAction');
+        }
+        $active = $value['Active'] ?? null;
+        if ($active !== null && !is_bool($active)) {
+            $this->RejectValue('SetAction');
+        }
+        $offset = $value['Offset'] ?? null;
+        if (is_float($offset) && floor($offset) === $offset) {
+            $offset = (int) $offset;
+        }
+        if ($offset !== null && (!is_int($offset) || abs($offset) > self::MAX_OFFSET)) {
+            $this->RejectValue('SetAction');
+        }
+        // Nur Aktionen der gewählten zentralen Instanz dürfen ausgewählt werden.
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+        if ($catalog === null || !isset($catalog[$id])) {
+            $this->RejectValue('SetAction');
+        }
+
+        $this->UpdateSelection(static function (array $selection) use ($id, $active, $offset): array {
+            $entry = $selection[$id] ?? ['Active' => false, 'Offset' => 0];
+            if ($active !== null) {
+                $entry['Active'] = $active;
+            }
+            if ($offset !== null) {
+                $entry['Offset'] = $offset;
+            }
+            $selection[$id] = $entry;
+            return $selection;
+        });
+    }
+
+    // Ändert die Auswahl unter der Sperre; eine nicht lesbare gespeicherte Auswahl wird nicht überschrieben.
+    private function UpdateSelection(callable $change): void
+    {
+        $this->UpdateSettings(function () use ($change): void {
+            $selection = $this->LoadSelection();
+            if ($selection === null) {
+                throw new Exception($this->Translate('The action selection cannot be read'));
+            }
+            $rows = [];
+            foreach ($change($selection) as $id => $entry) {
+                $rows[] = ['ID' => (string) $id, 'Active' => $entry['Active'], 'Offset' => $entry['Offset']];
+            }
+            $this->WriteAttributeString('Selection', json_encode($rows));
+        });
+    }
+
+    // Schreibt Einstellungen unter derselben Sperre wie die Weckroutine und berechnet danach den nächsten Zeitpunkt neu.
+    private function UpdateSettings(callable $write): void
+    {
+        $semaphore = 'WUM_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Settings', 'Semaphore could not be entered', 0);
+            throw new Exception($this->Translate('The setting could not be saved, please try again'));
+        }
+        try {
+            $write();
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+        $this->Process();
+    }
+
+    private function RejectValue(string $ident): never
+    {
+        $this->SendDebug('Settings', 'Invalid value for ' . $ident, 0);
+        throw new Exception($this->Translate('Invalid value'));
+    }
+
+    // Werte aus Konsole bzw. Kachel kommen JSON-kodiert oder bereits als Array.
+    private function DecodeObject(mixed $value): ?array
+    {
+        $decoded = is_string($value) ? json_decode($value, true) : $value;
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    // Akzeptiert {"hour", "minute", "second"} (SelectTime, JSON-kodiert oder als Array) oder "HH:MM[:SS]".
+    private function ParseTime(mixed $value): ?array
+    {
+        if (is_string($value) && preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $value, $match) === 1) {
+            $time = ['hour' => (int) $match[1], 'minute' => (int) $match[2], 'second' => (int) ($match[3] ?? 0)];
+        } else {
+            $time = $this->DecodeObject($value);
+            if ($time === null) {
+                return null;
+            }
+            $time += ['second' => 0];
+        }
+        foreach (['hour' => 23, 'minute' => 59, 'second' => 59] as $key => $maximum) {
+            if (!$this->IsValidTimePart($time, $key, $maximum)) {
+                return null;
+            }
+        }
+        return ['hour' => $time['hour'], 'minute' => $time['minute'], 'second' => $time['second']];
+    }
+
     public function GetConfigurationForm(): string
     {
         $content = file_get_contents(__DIR__ . '/form.json');
         $form = is_string($content) ? json_decode($content, true) : null;
-        if (!is_array($form) || !isset($form['elements']) || !is_array($form['elements'])) {
+        if (!is_array($form) || !isset($form['actions']) || !is_array($form['actions'])) {
             $this->SendDebug('Form', 'form.json cannot be read', 0);
             return is_string($content) ? $content : '{}';
         }
 
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
-        $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
-        $selection = $this->LoadSelection();
+        $context = [
+            'actionInstance' => $actionInstance,
+            'catalog'        => $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null,
+            'selection'      => $this->LoadSelection(),
+            'time'           => $this->ParseTime($this->ReadAttributeString('WakeUpTime')),
+            'weekdays'       => $this->LoadWeekdays()
+        ];
+        $this->FillFormElements($form['actions'], $context);
 
-        // Captions übersetzt die Konsole anhand der locale.json; Translate() nur für Werte und Logmeldungen.
-        foreach ($form['elements'] as &$element) {
-            if (($element['name'] ?? '') === 'ActionsHint') {
-                if ($actionInstance <= 0) {
+        return json_encode($form);
+    }
+
+    // Setzt die gespeicherten Einstellungen in die Elemente des Bereichs "actions" (inkl. verschachtelter Elemente).
+    // Captions übersetzt die Konsole anhand der locale.json; Translate() nur für Werte und Logmeldungen.
+    private function FillFormElements(array &$elements, array $context): void
+    {
+        foreach ($elements as &$element) {
+            $name = $element['name'] ?? '';
+            if ($name === 'Active') {
+                $element['value'] = $this->ReadAttributeBoolean('Active');
+            } elseif ($name === 'WakeUpTime') {
+                if ($context['time'] !== null) {
+                    $element['value'] = json_encode($context['time']);
+                }
+            } elseif (($day = array_search($name, self::WEEKDAYS, true)) !== false) {
+                if ($context['weekdays'] === null) {
+                    // Nicht lesbare gespeicherte Wochentage nicht durch Bedienung überschreiben lassen.
+                    $element['enabled'] = false;
+                } else {
+                    $element['value'] = isset($context['weekdays'][$day]);
+                }
+            } elseif ($name === 'ActionsHint') {
+                if ($context['actionInstance'] <= 0) {
                     $element['caption'] = 'Select the central actions and apply; the actions will then be listed here.';
                     $element['visible'] = true;
-                } elseif ($catalog === null) {
+                } elseif ($context['catalog'] === null) {
                     $element['caption'] = 'The central actions are not available. The current selection is kept.';
                     $element['visible'] = true;
-                } elseif ($selection === null) {
+                } elseif ($context['selection'] === null) {
                     $element['caption'] = 'The saved action selection cannot be read and will not be overwritten.';
                     $element['visible'] = true;
                 }
-            }
-            $group = array_search($element['name'] ?? '', self::GROUP_PROPERTIES, true);
-            if ($group !== false) {
-                if ($catalog === null || $selection === null) {
-                    // Gespeicherte Auswahl unverändert anzeigen und nicht bearbeitbar machen, damit sie nicht verloren geht.
-                    $element['enabled'] = false;
-                    $element['visible'] = $actionInstance > 0;
+            } elseif (($group = array_search($name, self::GROUP_PROPERTIES, true)) !== false) {
+                if ($context['catalog'] === null || $context['selection'] === null) {
+                    $element['visible'] = false;
                 } else {
-                    $rows = $this->BuildSelectionRows($group, $catalog, $selection);
-                    $element['loadValuesFromConfiguration'] = false;
-                    $element['values'] = $rows;
-                    $element['visible'] = count($rows) > 0;
+                    $element['values'] = $this->BuildSelectionRows($group, $context['catalog'], $context['selection']);
+                    $element['visible'] = count($element['values']) > 0;
                 }
+            }
+            if (isset($element['items']) && is_array($element['items'])) {
+                $this->FillFormElements($element['items'], $context);
             }
         }
         unset($element);
+    }
 
-        return json_encode($form);
+    // Liefert die aktiven Wochentage als [ISO-Nummer => true] oder null, wenn die gespeicherten Daten nicht lesbar sind.
+    private function LoadWeekdays(): ?array
+    {
+        $list = $this->DecodeList($this->ReadAttributeString('Weekdays'));
+        if ($list === null) {
+            $this->SendDebug('Configuration', 'Weekdays cannot be read', 0);
+            return null;
+        }
+        $weekdays = [];
+        foreach ($list as $day) {
+            if (!is_int($day) || !isset(self::WEEKDAYS[$day])) {
+                $this->SendDebug('Configuration', 'Weekdays cannot be read', 0);
+                return null;
+            }
+            $weekdays[$day] = true;
+        }
+        ksort($weekdays);
+        return $weekdays;
     }
 
     public function GetVisualizationTile(): string
@@ -292,7 +539,7 @@ class WakeUpManager extends IPSModuleStrict
         try {
             $now = time();
 
-            if (!$this->ReadPropertyBoolean('Active')) {
+            if (!$this->ReadAttributeBoolean('Active')) {
                 $this->ResetState();
                 $this->SetTimerInterval(self::TIMER, 0);
                 $this->SetStatus(IS_INACTIVE);
@@ -315,18 +562,18 @@ class WakeUpManager extends IPSModuleStrict
 
     private function LoadConfiguration(): ?array
     {
-        $time = json_decode($this->ReadPropertyString('WakeUpTime'), true);
-        if (!is_array($time) || !$this->IsValidTimePart($time, 'hour', 23) || !$this->IsValidTimePart($time, 'minute', 59) || !$this->IsValidTimePart($time, 'second', 59)) {
+        $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
+        if ($time === null) {
             $this->SendDebug('Configuration', 'Invalid wake-up time', 0);
             $this->SetStatus(self::STATUS_INVALID_TIME);
             return null;
         }
 
-        $weekdays = [];
-        foreach (self::WEEKDAYS as $day => $name) {
-            if ($this->ReadPropertyBoolean($name)) {
-                $weekdays[$day] = true;
-            }
+        $weekdays = $this->LoadWeekdays();
+        if ($weekdays === null) {
+            $this->LogMessage($this->Translate('The weekdays of the alarm clock cannot be read'), KL_ERROR);
+            $this->SetStatus(self::STATUS_INVALID_WEEKDAYS);
+            return null;
         }
         if (count($weekdays) === 0) {
             $this->SendDebug('Configuration', 'No weekday enabled', 0);
@@ -383,18 +630,14 @@ class WakeUpManager extends IPSModuleStrict
         return isset($time[$key]) && is_int($time[$key]) && $time[$key] >= 0 && $time[$key] <= $maximum;
     }
 
-    // Liefert die eigene Auswahl je Aktions-ID aus allen Gruppenlisten (und einer nicht migrierten Altliste)
-    // oder null, wenn gespeicherte Daten nicht lesbar sind. Fehlerhafte Einträge werden einzeln übersprungen.
+    // Liefert die eigene Auswahl je Aktions-ID oder null, wenn die gespeicherten Daten nicht lesbar sind.
+    // Fehlerhafte Einträge werden einzeln übersprungen.
     private function LoadSelection(): ?array
     {
-        $rows = [];
-        foreach ([...array_values(self::GROUP_PROPERTIES), self::LEGACY_PROPERTY] as $property) {
-            $list = $this->DecodeList($this->ReadPropertyString($property));
-            if ($list === null) {
-                $this->SendDebug('Configuration', 'Action selection ' . $property . ' cannot be read', 0);
-                return null;
-            }
-            array_push($rows, ...$list);
+        $rows = $this->DecodeList($this->ReadAttributeString('Selection'));
+        if ($rows === null) {
+            $this->SendDebug('Configuration', 'Action selection cannot be read', 0);
+            return null;
         }
 
         $selection = [];
@@ -405,7 +648,7 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             if (isset($selection[$id])) {
-                // Doppelte IDs können nur bis zum nächsten Speichern des Formulars auftreten; der erste Eintrag gilt.
+                // Doppelte IDs entstehen durch das Modul nicht; falls doch, gilt der erste Eintrag.
                 continue;
             }
             $offset = $row['Offset'] ?? 0;

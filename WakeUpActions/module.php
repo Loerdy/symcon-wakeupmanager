@@ -34,19 +34,20 @@ class WakeUpActions extends IPSModuleStrict
     {
         parent::Migrate($JSONData);
 
-        $data = json_decode($JSONData, true);
-        if (!is_array($data) || !isset($data['configuration']) || !is_array($data['configuration'])) {
+        // Als Objekte dekodieren, damit leere JSON-Objekte (z. B. "attributes": {}) nicht als Listen zurückgeschrieben werden.
+        $data = json_decode($JSONData);
+        if (!is_object($data) || !isset($data->configuration) || !is_object($data->configuration)) {
             return '';
         }
-        $configuration = $data['configuration'];
+        $configuration = $data->configuration;
 
-        $legacy = $this->DecodeList($configuration[self::LEGACY_PROPERTY] ?? '[]');
+        $legacy = $this->DecodeList($configuration->{self::LEGACY_PROPERTY} ?? '[]');
         if ($legacy === null || count($legacy) === 0) {
             // Nicht lesbare Altdaten bleiben unverändert erhalten (Hinweis in ApplyChanges).
             return '';
         }
         foreach (self::GROUP_PROPERTIES as $property) {
-            $current = $this->DecodeList($configuration[$property] ?? '[]');
+            $current = $this->DecodeList($configuration->$property ?? '[]');
             if ($current === null || count($current) > 0) {
                 // Neue Listen sind bereits befüllt; nichts überschreiben.
                 return '';
@@ -71,9 +72,9 @@ class WakeUpActions extends IPSModuleStrict
             if ($encoded === false || json_decode($encoded, true) !== $groups[$group]) {
                 return '';
             }
-            $data['configuration'][$property] = $encoded;
+            $configuration->$property = $encoded;
         }
-        $data['configuration'][self::LEGACY_PROPERTY] = '[]';
+        $configuration->{self::LEGACY_PROPERTY} = '[]';
 
         $result = json_encode($data);
         return $result === false ? '' : $result;

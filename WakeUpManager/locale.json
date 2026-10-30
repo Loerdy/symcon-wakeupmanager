@@ -1,8 +1,10 @@
 {
     "translations": {
         "de": {
+            "Settings of the alarm clock. Changes are saved immediately, also when made in the tile.": "Einstellungen des Weckers. Änderungen werden sofort gespeichert, auch wenn sie in der Kachel vorgenommen werden.",
             "Alarm clock active": "Wecker aktiv",
             "Wake-up time": "Weckzeit",
+            "Save wake-up time": "Weckzeit speichern",
             "Active weekdays": "Aktive Wochentage",
             "Mon": "Mo",
             "Tue": "Di",
@@ -26,6 +28,10 @@
             "No weekday is enabled": "Es ist kein Wochentag aktiviert",
             "The action selection cannot be read": "Die Aktionsauswahl ist nicht lesbar",
             "The central actions are not available": "Die zentralen Aktionen sind nicht verfügbar",
+            "The weekdays cannot be read": "Die Wochentage sind nicht lesbar",
+            "The weekdays of the alarm clock cannot be read": "Die Wochentage des Weckers sind nicht lesbar",
+            "The setting could not be saved, please try again": "Die Einstellung konnte nicht gespeichert werden, bitte erneut versuchen",
+            "Invalid value": "Ungültiger Wert",
             "Select the central actions and apply; the actions will then be listed here.": "Zentrale Aktionen auswählen und übernehmen, danach erscheinen hier die Aktionen zur Auswahl.",
             "The central actions are not available. The current selection is kept.": "Die zentralen Aktionen sind nicht verfügbar. Die bisherige Auswahl bleibt erhalten.",
             "The saved action selection cannot be read and will not be overwritten.": "Die gespeicherte Aktionsauswahl ist nicht lesbar und wird nicht überschrieben.",
