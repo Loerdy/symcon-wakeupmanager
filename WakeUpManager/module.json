@@ -2,7 +2,7 @@
     "id": "{108BD31A-69AA-02D1-78A0-F0D88EE74B28}",
     "name": "WakeUpManager",
     "type": 3,
-    "vendor": "",
+    "vendor": "WakeUpManager",
     "aliases": [
         "Wecker",
         "Weckroutine",
