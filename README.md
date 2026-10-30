@@ -2,13 +2,18 @@
 
 IP-Symcon-Library **WakeUpManager**: Wecker mit Weckroutine (z. B. Licht, Rollladen, Radio, Heizung).
 
-Eine Instanz des Moduls **WakeUpManager** entspricht einem Wecker. Zur Weckzeit bzw. mit einem einstellbaren Zeitversatz davor oder danach werden frei wählbare IP-Symcon-Aktionen ausgeführt. Das Modul steuert keine Geräte direkt und hat keine Abhängigkeiten zu anderen Modulen.
+Die Library enthält zwei Module:
 
-> Status: Version 0.1 (Grundgerüst). Die HTML-Kachel und optionale Statusvariablen folgen in späteren Versionen.
+- **WakeUpActions**: zentrale Liste der verfügbaren Aktionen (einmal pro System).
+- **WakeUpManager**: ein Wecker pro Instanz. Jeder Wecker wählt aus den zentralen Aktionen aus, welche zur Weckzeit bzw. mit welchem Zeitversatz davor oder danach ausgeführt werden.
+
+Die Module steuern keine Geräte direkt und haben keine Abhängigkeiten zu anderen Modulen; ausgeführt werden Standard-Aktionen von IP-Symcon.
+
+> Status: Version 0.1 (in Entwicklung). Die HTML-Kachel und optionale Statusvariablen folgen in späteren Versionen.
 
 ## Voraussetzungen
 
-- IP-Symcon ab Version 8.1 (das Modul verwendet die Basisklasse `IPSModuleStrict`)
+- IP-Symcon ab Version 9.1
 
 ## Installation
 
@@ -18,41 +23,46 @@ Im Module Control die Repository-URL hinzufügen:
 https://github.com/Loerdy/symcon-wakeupmanager
 ```
 
-Anschließend eine Instanz **WakeUpManager** anlegen.
+1. Eine Instanz **WakeUpActions** anlegen und dort die Aktionen eintragen.
+2. Für jeden Wecker eine Instanz **WakeUpManager** anlegen und darin die WakeUpActions-Instanz auswählen.
 
-## Konfiguration
+## Zentrale Aktionen (WakeUpActions)
+
+Jede Aktion besteht aus einer **Bezeichnung** (z. B. „Schlafzimmerlicht an“) und einer beliebigen **IP-Symcon-Aktion** inklusive Ziel. Jede Aktion erhält beim Anlegen automatisch eine feste ID. Umbenennen, Umsortieren oder das Ändern der Aktion wirkt sich deshalb sofort auf alle Wecker aus, ohne dass die Auswahl in den Weckern verloren geht.
+
+## Wecker (WakeUpManager)
 
 | Einstellung | Beschreibung |
 | --- | --- |
 | Wecker aktiv | Globaler Ein/Aus-Schalter. Neue Instanzen sind deaktiviert. |
 | Weckzeit | Uhrzeit des Weckens (Standard 06:30). |
 | Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr). |
-| Aktionen | Liste der auszuführenden Aktionen. |
+| Zentrale Aktionen | Die WakeUpActions-Instanz, aus der Aktionen ausgewählt werden. |
+| Aktionen | Alle zentralen Aktionen mit **Ausführen** (an/aus) und **Zeitversatz**. |
 
-Jede Aktion besteht aus:
+Nach Auswahl der zentralen Instanz einmal **Übernehmen**, danach erscheinen die Aktionen zur Auswahl.
 
-- **Aktiv**: Aktion ein- oder ausschalten, ohne sie zu löschen.
-- **Bezeichnung**: Freier Name, erscheint in Debug- und Fehlermeldungen.
-- **Zeitversatz** in Minuten relativ zur Weckzeit (−1440 bis 1440): negativ = vorher (z. B. Heizung −60), 0 = zur Weckzeit, positiv = danach.
-- **Aktion**: Beliebige IP-Symcon-Aktion inklusive Ziel (Auswahl über das Standard-Aktionsformular).
+Der **Zeitversatz** wird pro Wecker in Minuten relativ zur Weckzeit festgelegt (−1440 bis 1440): negativ = vorher (z. B. Heizung −60), 0 = zur Weckzeit, positiv = danach. Ein negativer Zeitversatz kann auf den Vortag fallen: Bei Weckzeit 06:30 an einem Montag und −480 Minuten wird die Aktion am Sonntag um 22:30 ausgeführt. Maßgeblich ist, ob der Tag der **Weckzeit** aktiv ist.
 
-Ein negativer Zeitversatz kann auf den Vortag fallen: Bei Weckzeit 06:30 an einem Montag und −480 Minuten wird die Aktion am Sonntag um 22:30 ausgeführt. Maßgeblich ist, ob der Tag der **Weckzeit** aktiv ist.
+Wird eine zentrale Aktion gelöscht, wird sie in den Weckern nicht mehr ausgeführt. Die bisherige Auswahl bleibt als rot markierte Zeile „Nicht mehr vorhanden“ stehen und kann dort gelöscht werden. Ist die zentrale Instanz nicht verfügbar, bleibt die Auswahl des Weckers unverändert erhalten.
 
 ## Verhalten
 
 - Es gibt genau einen Timer, der immer auf den nächsten fälligen Zeitpunkt (nächste Aktion oder nächste Weckzeit) gesetzt wird. Er wird nach jeder Konfigurationsänderung, beim Start von IP-Symcon und nach jedem Auslösen neu berechnet. Es findet kein Polling statt.
 - Die Zeitberechnung erfolgt in der lokalen Zeitzone von IP-Symcon. Der Zeitversatz ist eine echte Zeitspanne: Bei der Zeitumstellung liegt eine Aktion mit −60 Minuten immer genau eine Stunde vor der Weckzeit.
 - Fällt die Weckzeit in die bei der Umstellung auf Sommerzeit ausgelassene Stunde (z. B. 02:30), wird an diesem Tag zur nächsten gültigen Uhrzeit (03:30) geweckt. Bei der Umstellung auf Winterzeit wird eine doppelt vorhandene Uhrzeit nur einmal ausgelöst (erstes Auftreten).
-- Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt – auch bei verspätetem Timer, Neustart oder erneutem Übernehmen der Konfiguration. Wird nur der Zeitversatz einer bereits ausgeführten Aktion geändert, wird sie im selben Weckvorgang nicht erneut ausgeführt.
+- Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt – auch bei verspätetem Timer, Neustart oder erneutem Übernehmen der Konfiguration. Wird nur der Zeitversatz oder die zentrale Definition einer bereits ausgeführten Aktion geändert, wird sie im selben Weckvorgang nicht erneut ausgeführt.
 - **Verpasste Zeitpunkte:** Noch nicht verarbeitete Zeitpunkte, die höchstens 5 Minuten zurückliegen, werden nachgeholt (z. B. kurzer Neustart, verzögerter Timer, Weckzeit wurde gerade auf eine Uhrzeit wenige Minuten in der Vergangenheit gestellt). Ältere Zeitpunkte werden nicht nachgeholt; das wird im Meldungsfenster als Warnung protokolliert.
 - Beim (Re-)Aktivieren des Weckers wird nichts nachgeholt, auch nicht innerhalb der 5 Minuten. Zeitpunkte während der Deaktivierung entfallen.
 - Schlägt eine Aktion fehl, werden die übrigen Aktionen trotzdem ausgeführt. Der Fehler erscheint im Debug und als Warnung im Meldungsfenster.
 
 ## Kachel (Testphase)
 
-Die Instanz stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre eigene Größe in Pixeln an und schreibt die Messwerte ins Debug-Fenster der Instanz (`TileProbe`). Ab IP-Symcon 9.1 wird die HTML-Kachel auch in der maximierten Ansicht verwendet. Die eigentliche Wecker-Kachel folgt.
+Der Wecker stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre eigene Größe in Pixeln an und schreibt die Messwerte ins Debug-Fenster der Instanz (`TileProbe`). Die HTML-Kachel wird auch in der maximierten Ansicht verwendet. Die eigentliche Wecker-Kachel folgt.
 
 ## Statuscodes
+
+**WakeUpManager**
 
 | Code | Bedeutung |
 | --- | --- |
@@ -60,7 +70,15 @@ Die Instanz stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre e
 | 104 | Wecker ist deaktiviert |
 | 201 | Die Weckzeit ist ungültig |
 | 202 | Es ist kein Wochentag aktiviert |
-| 203 | Die Aktionsliste ist nicht lesbar |
+| 203 | Die Aktionsauswahl ist nicht lesbar |
+| 204 | Die zentralen Aktionen sind nicht verfügbar (Instanz gelöscht, falscher Typ oder Liste nicht lesbar) |
+
+**WakeUpActions**
+
+| Code | Bedeutung |
+| --- | --- |
+| 102 | Aktionsliste ist bereit |
+| 201 | Die Aktionsliste ist fehlerhaft (nicht lesbar oder Einträge ohne eindeutige ID) |
 
 ## Lizenz
 

@@ -27,47 +27,56 @@
             ]
         },
         {
+            "type": "SelectInstance",
+            "name": "ActionInstance",
+            "caption": "Zentrale Aktionen (WakeUpActions)",
+            "validModules": [
+                "{4E963960-1F66-A246-3BC9-BA42E525A6F7}"
+            ]
+        },
+        {
+            "type": "Label",
+            "name": "ActionsHint",
+            "caption": "",
+            "visible": false
+        },
+        {
             "type": "List",
             "name": "Actions",
             "caption": "Aktionen (Zeitversatz in Minuten: negativ = vor der Weckzeit, 0 = zur Weckzeit, positiv = danach)",
             "rowCount": 8,
-            "add": true,
+            "add": false,
             "delete": true,
-            "sort": {
-                "column": "Offset",
-                "direction": "ascending"
-            },
             "columns": [
                 {
-                    "caption": "Aktiv",
+                    "caption": "Aktion",
+                    "name": "Name",
+                    "width": "auto",
+                    "save": false
+                },
+                {
+                    "caption": "Ausführen",
                     "name": "Active",
-                    "width": "80px",
-                    "add": true,
+                    "width": "110px",
                     "edit": { "type": "CheckBox" }
                 },
                 {
-                    "caption": "Bezeichnung",
-                    "name": "Name",
-                    "width": "auto",
-                    "add": "",
-                    "save": true
-                },
-                {
-                    "caption": "Zeitversatz (min)",
+                    "caption": "Zeitversatz",
                     "name": "Offset",
                     "width": "160px",
                     "align": "right",
-                    "add": 0,
+                    "edit": {
+                        "type": "NumberSpinner",
+                        "suffix": " min",
+                        "minimum": -1440,
+                        "maximum": 1440
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false,
                     "save": true
                 }
-            ],
-            "form": [
-                "return [",
-                "    ['type' => 'CheckBox', 'name' => 'Active', 'caption' => 'Aktiv'],",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Bezeichnung', 'width' => '400px'],",
-                "    ['type' => 'NumberSpinner', 'name' => 'Offset', 'caption' => 'Zeitversatz zur Weckzeit (negativ = vorher, positiv = danach)', 'suffix' => ' min', 'minimum' => -1440, 'maximum' => 1440],",
-                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Aktion', 'width' => '600px']",
-                "];"
             ]
         }
     ],
@@ -76,6 +85,7 @@
         { "code": 104, "icon": "inactive", "caption": "Wecker ist deaktiviert" },
         { "code": 201, "icon": "error", "caption": "Die Weckzeit ist ungültig" },
         { "code": 202, "icon": "error", "caption": "Es ist kein Wochentag aktiviert" },
-        { "code": 203, "icon": "error", "caption": "Die Aktionsliste ist nicht lesbar" }
+        { "code": 203, "icon": "error", "caption": "Die Aktionsauswahl ist nicht lesbar" },
+        { "code": 204, "icon": "error", "caption": "Die zentralen Aktionen sind nicht verfügbar" }
     ]
 }

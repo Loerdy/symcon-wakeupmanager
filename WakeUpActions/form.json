@@ -1,0 +1,42 @@
+{
+    "elements": [
+        {
+            "type": "Label",
+            "caption": "Zentrale Aktionen für alle Wecker. In jedem Wecker wird ausgewählt, welche Aktionen mit welchem Zeitversatz ausgeführt werden."
+        },
+        {
+            "type": "List",
+            "name": "Actions",
+            "caption": "Aktionen",
+            "rowCount": 10,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": { "strategy": "guid" },
+                    "save": true
+                },
+                {
+                    "caption": "Bezeichnung",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Bezeichnung', 'width' => '400px'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Aktion', 'width' => '600px']",
+                "];"
+            ]
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Aktionsliste ist bereit" },
+        { "code": 201, "icon": "error", "caption": "Die Aktionsliste ist fehlerhaft" }
+    ]
+}
