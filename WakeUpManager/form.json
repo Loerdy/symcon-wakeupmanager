@@ -17,13 +17,41 @@
         {
             "type": "RowLayout",
             "items": [
-                { "type": "CheckBox", "name": "Monday", "caption": "Mo" },
-                { "type": "CheckBox", "name": "Tuesday", "caption": "Di" },
-                { "type": "CheckBox", "name": "Wednesday", "caption": "Mi" },
-                { "type": "CheckBox", "name": "Thursday", "caption": "Do" },
-                { "type": "CheckBox", "name": "Friday", "caption": "Fr" },
-                { "type": "CheckBox", "name": "Saturday", "caption": "Sa" },
-                { "type": "CheckBox", "name": "Sunday", "caption": "So" }
+                {
+                    "type": "CheckBox",
+                    "name": "Monday",
+                    "caption": "Mo"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Tuesday",
+                    "caption": "Di"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Wednesday",
+                    "caption": "Mi"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Thursday",
+                    "caption": "Do"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Friday",
+                    "caption": "Fr"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Saturday",
+                    "caption": "Sa"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Sunday",
+                    "caption": "So"
+                }
             ]
         },
         {
@@ -42,18 +70,12 @@
         },
         {
             "type": "List",
-            "name": "Actions",
-            "caption": "Aktionen (Zeitversatz in Minuten: negativ = vor der Weckzeit, 0 = zur Weckzeit, positiv = danach)",
-            "rowCount": 8,
+            "name": "ActionsLight",
+            "caption": "Lampen",
+            "rowCount": 4,
             "add": false,
             "delete": true,
             "columns": [
-                {
-                    "caption": "Gruppe",
-                    "name": "Group",
-                    "width": "140px",
-                    "save": false
-                },
                 {
                     "caption": "Aktion",
                     "name": "Name",
@@ -64,7 +86,67 @@
                     "caption": "Ausführen",
                     "name": "Active",
                     "width": "110px",
-                    "edit": { "type": "CheckBox" }
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "save": true
+                }
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsShutter",
+            "caption": "Rollläden",
+            "rowCount": 4,
+            "add": false,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Aktion",
+                    "name": "Name",
+                    "width": "auto",
+                    "save": false
+                },
+                {
+                    "caption": "Ausführen",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "save": true
+                }
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsHeating",
+            "caption": "Heizung (Zeitversatz in Minuten: negativ = vor der Weckzeit, positiv = danach)",
+            "rowCount": 4,
+            "add": false,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Aktion",
+                    "name": "Name",
+                    "width": "auto",
+                    "save": false
+                },
+                {
+                    "caption": "Ausführen",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
                 },
                 {
                     "caption": "Zeitversatz",
@@ -84,14 +166,96 @@
                     "save": true
                 }
             ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsOther",
+            "caption": "Sonstiges",
+            "rowCount": 4,
+            "add": false,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Aktion",
+                    "name": "Name",
+                    "width": "auto",
+                    "save": false
+                },
+                {
+                    "caption": "Ausführen",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "save": true
+                }
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsScript",
+            "caption": "Skripte",
+            "rowCount": 4,
+            "add": false,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Aktion",
+                    "name": "Name",
+                    "width": "auto",
+                    "save": false
+                },
+                {
+                    "caption": "Ausführen",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "save": true
+                }
+            ]
         }
     ],
     "status": [
-        { "code": 102, "icon": "active", "caption": "Wecker ist aktiv" },
-        { "code": 104, "icon": "inactive", "caption": "Wecker ist deaktiviert" },
-        { "code": 201, "icon": "error", "caption": "Die Weckzeit ist ungültig" },
-        { "code": 202, "icon": "error", "caption": "Es ist kein Wochentag aktiviert" },
-        { "code": 203, "icon": "error", "caption": "Die Aktionsauswahl ist nicht lesbar" },
-        { "code": 204, "icon": "error", "caption": "Die zentralen Aktionen sind nicht verfügbar" }
+        {
+            "code": 102,
+            "icon": "active",
+            "caption": "Wecker ist aktiv"
+        },
+        {
+            "code": 104,
+            "icon": "inactive",
+            "caption": "Wecker ist deaktiviert"
+        },
+        {
+            "code": 201,
+            "icon": "error",
+            "caption": "Die Weckzeit ist ungültig"
+        },
+        {
+            "code": 202,
+            "icon": "error",
+            "caption": "Es ist kein Wochentag aktiviert"
+        },
+        {
+            "code": 203,
+            "icon": "error",
+            "caption": "Die Aktionsauswahl ist nicht lesbar"
+        },
+        {
+            "code": 204,
+            "icon": "error",
+            "caption": "Die zentralen Aktionen sind nicht verfügbar"
+        }
     ]
 }

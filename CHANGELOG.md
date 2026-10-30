@@ -12,8 +12,8 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Wecker-Konfiguration: globaler Aktiv-Schalter, Weckzeit und aktive Wochentage.
 - Zentrale Aktionsliste mit frei wählbarer IP-Symcon-Aktion und automatisch vergebener, fester ID.
 - Der Wecker berechnet sich neu, sobald die zentralen Aktionen geändert oder (z. B. nach einem Modul-Update) neu geladen wurden.
-- Gruppen für zentrale Aktionen (Lampen, Rollläden, Heizung, Sonstiges, Skripte); der Wecker zeigt die Aktionen nach Gruppen sortiert.
-- Auswahl der zentralen Aktionen pro Wecker mit eigenem Zeitversatz in Minuten relativ zur Weckzeit.
+- Gruppen für zentrale Aktionen (Lampen, Rollläden, Heizung, Sonstiges, Skripte) mit je einer eigenen Liste, in WakeUpActions und im Wecker. Bestehende Einträge werden beim Update per Migration verlustfrei übernommen.
+- Auswahl der zentralen Aktionen pro Wecker; nur Heizungsaktionen haben einen eigenen Zeitversatz in Minuten relativ zur Weckzeit, alle anderen laufen zur Weckzeit.
 - Ein einzelner Timer auf den nächsten fälligen Zeitpunkt; Neuberechnung nach Konfigurationsänderung, IP-Symcon-Start und jedem Auslösen.
 - Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt; verpasste Zeitpunkte werden nur innerhalb von 5 Minuten nachgeholt.
 - Vorläufige Test-Kachel (HTML-SDK), die Größe und Ladeverhalten der Kachel anzeigt und ins Debug schreibt; wird durch die eigentliche Wecker-Kachel ersetzt.

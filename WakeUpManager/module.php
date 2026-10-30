@@ -25,14 +25,19 @@ class WakeUpManager extends IPSModuleStrict
         7 => 'Sunday'
     ];
 
-    // Gruppen der zentralen Aktionen in Anzeigereihenfolge; die Schlüssel werden gespeichert und nicht übersetzt.
-    private const GROUPS = [
-        'light'   => 'Lampen',
-        'shutter' => 'Rollläden',
-        'heating' => 'Heizung',
-        'other'   => 'Sonstiges',
-        'script'  => 'Skripte'
+    // Eigenschaft je Gruppe, gleichnamig in WakeUpActions (Aktionen) und hier (Auswahl); die Gruppenschlüssel
+    // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz.
+    private const GROUP_PROPERTIES = [
+        'light'   => 'ActionsLight',
+        'shutter' => 'ActionsShutter',
+        'heating' => 'ActionsHeating',
+        'other'   => 'ActionsOther',
+        'script'  => 'ActionsScript'
     ];
+    private const OFFSET_GROUP = 'heating';
+
+    // Frühere gemeinsame Auswahlliste; wird per Migrate übernommen.
+    private const LEGACY_PROPERTY = 'Actions';
 
     private const STATUS_INVALID_TIME = 201;
     private const STATUS_NO_WEEKDAY = 202;
@@ -49,8 +54,11 @@ class WakeUpManager extends IPSModuleStrict
             $this->RegisterPropertyBoolean($name, $day <= 5);
         }
         $this->RegisterPropertyInteger('ActionInstance', 0);
-        // Auswahl aus den zentralen Aktionen: [{"ID": "<ID der zentralen Aktion>", "Active": bool, "Offset": Minuten}, ...]
-        $this->RegisterPropertyString('Actions', '[]');
+        // Auswahl aus den zentralen Aktionen je Gruppe: [{"ID": "<ID der zentralen Aktion>", "Active": bool, "Offset": Minuten}, ...]
+        foreach (self::GROUP_PROPERTIES as $property) {
+            $this->RegisterPropertyString($property, '[]');
+        }
+        $this->RegisterPropertyString(self::LEGACY_PROPERTY, '[]');
 
         // Ende des zuletzt abgearbeiteten Zeitfensters (Unix-Zeitstempel); -1 = Wecker war deaktiviert, nichts nachholen.
         $this->RegisterAttributeInteger('LastProcessed', -1);
@@ -61,6 +69,41 @@ class WakeUpManager extends IPSModuleStrict
 
         // HTML-Kachel auch im maximierten Zustand verwenden.
         $this->SetVisualizationType(INSTANCE_VISUALIZATION_TYPE_HTML_FULLSCREEN);
+    }
+
+    // Übernimmt die frühere gemeinsame Auswahlliste nach "ActionsOther". Die Zuordnung zur Gruppe erfolgt über die ID,
+    // daher ist die Gruppe der Speicherstelle unerheblich; beim nächsten Speichern des Formulars wird neu verteilt.
+    public function Migrate(string $JSONData): string
+    {
+        parent::Migrate($JSONData);
+
+        $data = json_decode($JSONData, true);
+        if (!is_array($data) || !isset($data['configuration']) || !is_array($data['configuration'])) {
+            return '';
+        }
+        $configuration = $data['configuration'];
+
+        $legacy = $this->DecodeList($configuration[self::LEGACY_PROPERTY] ?? '[]');
+        if ($legacy === null || count($legacy) === 0) {
+            // Nicht lesbare Altdaten bleiben unverändert erhalten (Status 203).
+            return '';
+        }
+        foreach (self::GROUP_PROPERTIES as $property) {
+            $current = $this->DecodeList($configuration[$property] ?? '[]');
+            if ($current === null || count($current) > 0) {
+                return '';
+            }
+        }
+
+        $encoded = json_encode($legacy);
+        if ($encoded === false || json_decode($encoded, true) !== $legacy) {
+            return '';
+        }
+        $data['configuration'][self::GROUP_PROPERTIES['other']] = $encoded;
+        $data['configuration'][self::LEGACY_PROPERTY] = '[]';
+
+        $result = json_encode($data);
+        return $result === false ? '' : $result;
     }
 
     public function ApplyChanges(): void
@@ -155,14 +198,17 @@ class WakeUpManager extends IPSModuleStrict
                     $element['visible'] = true;
                 }
             }
-            if (($element['name'] ?? '') === 'Actions') {
+            $group = array_search($element['name'] ?? '', self::GROUP_PROPERTIES, true);
+            if ($group !== false) {
                 if ($catalog === null || $selection === null) {
                     // Gespeicherte Auswahl unverändert anzeigen und nicht bearbeitbar machen, damit sie nicht verloren geht.
                     $element['enabled'] = false;
                     $element['visible'] = $actionInstance > 0;
                 } else {
+                    $rows = $this->BuildSelectionRows($group, $catalog, $selection);
                     $element['loadValuesFromConfiguration'] = false;
-                    $element['values'] = $this->BuildSelectionRows($catalog, $selection);
+                    $element['values'] = $rows;
+                    $element['visible'] = count($rows) > 0;
                 }
             }
         }
@@ -182,41 +228,47 @@ class WakeUpManager extends IPSModuleStrict
         return $html;
     }
 
-    // Eine Zeile je zentraler Aktion, nach Gruppen sortiert (innerhalb einer Gruppe in zentraler Reihenfolge);
-    // Auswahlen, deren zentrale Aktion nicht mehr existiert, bleiben löschbar am Ende erhalten.
-    private function BuildSelectionRows(array $catalog, array $selection): array
+    // Eine Zeile je zentraler Aktion der Gruppe in zentraler Reihenfolge. Auswahlen, deren zentrale Aktion nicht
+    // mehr existiert, bleiben löschbar am Ende der Gruppe "Sonstiges" erhalten.
+    private function BuildSelectionRows(string $group, array $catalog, array $selection): array
     {
-        $groupOrder = array_flip(array_keys(self::GROUPS));
-        $order = array_flip(array_keys($catalog));
-        uksort($catalog, static function ($a, $b) use ($catalog, $groupOrder, $order): int {
-            return [$groupOrder[$catalog[$a]['group']], $order[$a]] <=> [$groupOrder[$catalog[$b]['group']], $order[$b]];
-        });
-
         $rows = [];
         foreach ($catalog as $id => $action) {
-            $rows[] = [
-                'ID'        => $id,
-                'Group'     => self::GROUPS[$action['group']],
+            if ($action['group'] !== $group) {
+                continue;
+            }
+            $row = [
+                'ID'        => (string) $id,
                 'Name'      => $action['name'],
                 'Active'    => $selection[$id]['Active'] ?? false,
-                'Offset'    => $selection[$id]['Offset'] ?? 0,
                 'deletable' => false
             ];
+            if ($group === self::OFFSET_GROUP) {
+                $row['Offset'] = $selection[$id]['Offset'] ?? 0;
+            }
+            $rows[] = $row;
         }
-        foreach ($selection as $id => $entry) {
-            if (!isset($catalog[$id])) {
-                $rows[] = [
-                    'ID'        => $id,
-                    'Group'     => '',
-                    'Name'      => 'Nicht mehr vorhanden',
-                    'Active'    => $entry['Active'],
-                    'Offset'    => $entry['Offset'],
-                    'rowColor'  => '#FFC0C0',
-                    'deletable' => true
-                ];
+        if ($group === 'other') {
+            foreach ($selection as $id => $entry) {
+                if (!isset($catalog[$id])) {
+                    $rows[] = [
+                        'ID'        => (string) $id,
+                        'Name'      => 'Nicht mehr vorhanden',
+                        'Active'    => $entry['Active'],
+                        'rowColor'  => '#FFC0C0',
+                        'deletable' => true
+                    ];
+                }
             }
         }
         return $rows;
+    }
+
+    // Liefert die Liste oder null, wenn der Wert keine JSON-Liste ist.
+    private function DecodeList(mixed $value): ?array
+    {
+        $list = is_string($value) ? json_decode($value, true) : $value;
+        return is_array($list) && array_is_list($list) ? $list : null;
     }
 
     private function Process(): void
@@ -296,10 +348,14 @@ class WakeUpManager extends IPSModuleStrict
                 $this->SendDebug('Configuration', 'Ausgewählte Aktion ' . $id . ' existiert nicht mehr', 0);
                 continue;
             }
+            // Nur Heizungsaktionen haben einen Zeitversatz. Ohne zentrale Aktionen ist die Gruppe unbekannt; die
+            // Aktion ist dann ohnehin nicht ausführbar, geplant wird mit dem gespeicherten Versatz.
+            $group = $catalog[$id]['group'] ?? null;
+            $offset = ($group === null || $group === self::OFFSET_GROUP) ? $entry['Offset'] : 0;
             $actions[] = [
-                'key'    => $id,
-                'label'  => $catalog[$id]['name'] ?? $id,
-                'offset' => $entry['Offset'] * 60
+                'key'    => (string) $id,
+                'label'  => $catalog[$id]['name'] ?? (string) $id,
+                'offset' => $offset * 60
             ];
         }
 
@@ -318,21 +374,29 @@ class WakeUpManager extends IPSModuleStrict
         return isset($time[$key]) && is_int($time[$key]) && $time[$key] >= 0 && $time[$key] <= $maximum;
     }
 
-    // Liefert die eigene Auswahl je Aktions-ID oder null, wenn die gespeicherten Daten nicht lesbar sind.
-    // Fehlerhafte Einträge werden einzeln übersprungen.
+    // Liefert die eigene Auswahl je Aktions-ID aus allen Gruppenlisten (und einer nicht migrierten Altliste)
+    // oder null, wenn gespeicherte Daten nicht lesbar sind. Fehlerhafte Einträge werden einzeln übersprungen.
     private function LoadSelection(): ?array
     {
-        $rows = json_decode($this->ReadPropertyString('Actions'), true);
-        if (!is_array($rows) || !array_is_list($rows)) {
-            $this->SendDebug('Configuration', 'Aktionsauswahl ist nicht lesbar', 0);
-            return null;
+        $rows = [];
+        foreach ([...array_values(self::GROUP_PROPERTIES), self::LEGACY_PROPERTY] as $property) {
+            $list = $this->DecodeList($this->ReadPropertyString($property));
+            if ($list === null) {
+                $this->SendDebug('Configuration', 'Aktionsauswahl ' . $property . ' ist nicht lesbar', 0);
+                return null;
+            }
+            array_push($rows, ...$list);
         }
 
         $selection = [];
         foreach ($rows as $index => $row) {
             $id = is_array($row) ? ($row['ID'] ?? null) : null;
-            if (!is_string($id) || $id === '' || isset($selection[$id])) {
-                $this->SendDebug('Configuration', 'Auswahl ' . ($index + 1) . ': fehlende oder doppelte ID', 0);
+            if (!is_string($id) || $id === '') {
+                $this->SendDebug('Configuration', 'Auswahl ' . ($index + 1) . ': fehlende ID', 0);
+                continue;
+            }
+            if (isset($selection[$id])) {
+                // Doppelte IDs können nur bis zum nächsten Speichern des Formulars auftreten; der erste Eintrag gilt.
                 continue;
             }
             $offset = $row['Offset'] ?? 0;
@@ -363,15 +427,21 @@ class WakeUpManager extends IPSModuleStrict
             $this->SendDebug('Catalog', 'Instanz ' . $instanceID . ' ist keine WakeUpActions-Instanz', 0);
             return null;
         }
-        $raw = $this->CallCatalog(static fn () => IPS_GetProperty($instanceID, 'Actions'));
-        $rows = is_string($raw) ? json_decode($raw, true) : null;
-        if (!is_array($rows) || !array_is_list($rows)) {
-            $this->SendDebug('Catalog', 'Zentrale Aktionsliste ist nicht lesbar', 0);
-            return null;
+        $rows = [];
+        foreach (self::GROUP_PROPERTIES as $group => $property) {
+            $raw = $this->CallCatalog(static fn () => IPS_GetProperty($instanceID, $property));
+            $list = is_string($raw) ? $this->DecodeList($raw) : null;
+            if ($list === null) {
+                $this->SendDebug('Catalog', 'Zentrale Aktionsliste ' . $property . ' ist nicht lesbar', 0);
+                return null;
+            }
+            foreach ($list as $row) {
+                $rows[] = [$group, $row];
+            }
         }
 
         $catalog = [];
-        foreach ($rows as $index => $row) {
+        foreach ($rows as $index => [$group, $row]) {
             $label = 'Zentrale Aktion ' . ($index + 1);
             $id = is_array($row) ? ($row['ID'] ?? null) : null;
             if (!is_string($id) || $id === '' || isset($catalog[$id])) {
@@ -379,11 +449,6 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             $name = is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $label;
-            // Einträge ohne oder mit unbekannter Gruppe zählen als "Sonstiges".
-            $group = $row['Group'] ?? 'other';
-            if (!is_string($group) || !isset(self::GROUPS[$group])) {
-                $group = 'other';
-            }
 
             // Der Wert von SelectAction ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
             $action = $row['Action'] ?? null;

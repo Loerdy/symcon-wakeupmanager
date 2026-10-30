@@ -28,7 +28,9 @@ https://github.com/Loerdy/symcon-wakeupmanager
 
 ## Zentrale Aktionen (WakeUpActions)
 
-Jede Aktion besteht aus einer **Gruppe** (Lampen, Rollläden, Heizung, Sonstiges, Skripte), einer **Bezeichnung** (z. B. „Schlafzimmerlicht an“) und einer beliebigen **IP-Symcon-Aktion** inklusive Ziel. Im Wecker werden die Aktionen nach Gruppen sortiert angezeigt. Aktionen ohne Gruppe gelten als „Sonstiges“. Jede Aktion erhält beim Anlegen automatisch eine feste ID. Umbenennen, Umsortieren oder das Ändern der Aktion wirkt sich deshalb sofort auf alle Wecker aus, ohne dass die Auswahl in den Weckern verloren geht.
+Für jede Gruppe gibt es eine eigene Liste: **Lampen, Rollläden, Heizung, Sonstiges, Skripte**. Jede Aktion besteht aus einer **Bezeichnung** (z. B. „Schlafzimmerlicht an“) und einer beliebigen **IP-Symcon-Aktion** inklusive Ziel. Um eine Aktion in eine andere Gruppe zu verschieben, wird sie dort neu angelegt; die Auswahl in den Weckern muss dann neu getroffen werden.
+
+Aktionen aus der früheren gemeinsamen Liste werden beim Modul-Update automatisch und mit ihrer ID in die Gruppenlisten übernommen (ohne Gruppe: „Sonstiges“). Kann die frühere Liste nicht gelesen werden, bleibt sie unverändert erhalten und die Instanz zeigt Status 202. Jede Aktion erhält beim Anlegen automatisch eine feste ID. Umbenennen, Umsortieren oder das Ändern der Aktion wirkt sich deshalb sofort auf alle Wecker aus, ohne dass die Auswahl in den Weckern verloren geht.
 
 ## Wecker (WakeUpManager)
 
@@ -38,13 +40,13 @@ Jede Aktion besteht aus einer **Gruppe** (Lampen, Rollläden, Heizung, Sonstiges
 | Weckzeit | Uhrzeit des Weckens (Standard 06:30). |
 | Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr). |
 | Zentrale Aktionen | Die WakeUpActions-Instanz, aus der Aktionen ausgewählt werden. |
-| Aktionen | Alle zentralen Aktionen mit **Ausführen** (an/aus) und **Zeitversatz**. |
+| Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe eine Liste der zentralen Aktionen mit **Ausführen** (an/aus); bei Heizung zusätzlich **Zeitversatz**. Leere Gruppen werden ausgeblendet. |
 
 Nach Auswahl der zentralen Instanz einmal **Übernehmen**, danach erscheinen die Aktionen zur Auswahl.
 
-Der **Zeitversatz** wird pro Wecker in Minuten relativ zur Weckzeit festgelegt (−1440 bis 1440): negativ = vorher (z. B. Heizung −60), 0 = zur Weckzeit, positiv = danach. Ein negativer Zeitversatz kann auf den Vortag fallen: Bei Weckzeit 06:30 an einem Montag und −480 Minuten wird die Aktion am Sonntag um 22:30 ausgeführt. Maßgeblich ist, ob der Tag der **Weckzeit** aktiv ist.
+Aktionen der Gruppen Lampen, Rollläden, Sonstiges und Skripte werden **zur Weckzeit** ausgeführt. Nur bei **Heizung** wird pro Wecker ein **Zeitversatz** in Minuten festgelegt (−1440 bis 1440): negativ = vorher (z. B. −60), 0 = zur Weckzeit, positiv = danach. Ein negativer Zeitversatz kann auf den Vortag fallen: Bei Weckzeit 06:30 an einem Montag und −480 Minuten wird die Aktion am Sonntag um 22:30 ausgeführt. Maßgeblich ist, ob der Tag der **Weckzeit** aktiv ist.
 
-Wird eine zentrale Aktion gelöscht, wird sie in den Weckern nicht mehr ausgeführt. Die bisherige Auswahl bleibt als rot markierte Zeile „Nicht mehr vorhanden“ stehen und kann dort gelöscht werden. Ist die zentrale Instanz nicht verfügbar, bleibt die Auswahl des Weckers unverändert erhalten.
+Wird eine zentrale Aktion gelöscht, wird sie in den Weckern nicht mehr ausgeführt. Die bisherige Auswahl bleibt in der Liste „Sonstiges“ als rot markierte Zeile „Nicht mehr vorhanden“ stehen und kann dort gelöscht werden. Ist die zentrale Instanz nicht verfügbar, bleibt die Auswahl des Weckers unverändert erhalten.
 
 ## Verhalten
 
@@ -79,6 +81,7 @@ Der Wecker stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre ei
 | --- | --- |
 | 102 | Aktionsliste ist bereit |
 | 201 | Die Aktionsliste ist fehlerhaft (nicht lesbar oder Einträge ohne eindeutige ID) |
+| 202 | Die bisherige gemeinsame Aktionsliste konnte nicht in die Gruppen übernommen werden (bleibt unverändert erhalten) |
 
 ## Lizenz
 
