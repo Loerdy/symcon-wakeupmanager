@@ -72,9 +72,21 @@ class WakeUpManager extends IPSModuleStrict
         foreach ($this->GetReferenceList() as $reference) {
             $this->UnregisterReference($reference);
         }
+        foreach ($this->GetMessageList() as $senderID => $messages) {
+            foreach ($messages as $message) {
+                if ($message === IM_CHANGESTATUS || $message === IM_CHANGESETTINGS) {
+                    $this->UnregisterMessage($senderID, $message);
+                }
+            }
+        }
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         if ($actionInstance > 0) {
             $this->RegisterReference($actionInstance);
+            // Nach Neuladen (z. B. Modul-Update) oder Änderung der zentralen Aktionen neu berechnen.
+            if (IPS_InstanceExists($actionInstance)) {
+                $this->RegisterMessage($actionInstance, IM_CHANGESTATUS);
+                $this->RegisterMessage($actionInstance, IM_CHANGESETTINGS);
+            }
         }
 
         if (IPS_GetKernelRunlevel() !== KR_READY) {
@@ -90,6 +102,12 @@ class WakeUpManager extends IPSModuleStrict
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         if ($Message === IPS_KERNELSTARTED) {
+            $this->Process();
+            return;
+        }
+        if (($Message === IM_CHANGESTATUS || $Message === IM_CHANGESETTINGS)
+            && $SenderID === $this->ReadPropertyInteger('ActionInstance')
+            && IPS_GetKernelRunlevel() === KR_READY) {
             $this->Process();
         }
     }
@@ -336,16 +354,16 @@ class WakeUpManager extends IPSModuleStrict
     // Liefert die zentralen Aktionen je ID oder null, wenn die Instanz ungültig oder ihre Liste nicht lesbar ist.
     private function LoadCatalog(int $instanceID): ?array
     {
-        if (!IPS_InstanceExists($instanceID)) {
+        if ($this->CallCatalog(static fn () => IPS_InstanceExists($instanceID)) !== true) {
             $this->SendDebug('Catalog', 'Instanz ' . $instanceID . ' existiert nicht', 0);
             return null;
         }
-        $instance = IPS_GetInstance($instanceID);
-        if (($instance['ModuleInfo']['ModuleID'] ?? '') !== self::ACTIONS_MODULE_ID) {
+        $instance = $this->CallCatalog(static fn () => IPS_GetInstance($instanceID));
+        if (!is_array($instance) || ($instance['ModuleInfo']['ModuleID'] ?? '') !== self::ACTIONS_MODULE_ID) {
             $this->SendDebug('Catalog', 'Instanz ' . $instanceID . ' ist keine WakeUpActions-Instanz', 0);
             return null;
         }
-        $raw = IPS_GetProperty($instanceID, 'Actions');
+        $raw = $this->CallCatalog(static fn () => IPS_GetProperty($instanceID, 'Actions'));
         $rows = is_string($raw) ? json_decode($raw, true) : null;
         if (!is_array($rows) || !array_is_list($rows)) {
             $this->SendDebug('Catalog', 'Zentrale Aktionsliste ist nicht lesbar', 0);
@@ -384,6 +402,30 @@ class WakeUpManager extends IPSModuleStrict
             ];
         }
         return $catalog;
+    }
+
+    // Zugriff auf die zentrale Instanz. Während diese neu geladen wird (z. B. Modul-Update), melden die
+    // IPS-Funktionen Warnungen; diese würden sonst z. B. das Konfigurationsformular unbrauchbar machen.
+    private function CallCatalog(callable $call): mixed
+    {
+        $error = null;
+        set_error_handler(static function (int $number, string $message) use (&$error): bool {
+            $error = $message;
+            return true;
+        });
+        try {
+            $result = $call();
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($error !== null) {
+            $this->SendDebug('Catalog', 'Zentrale Instanz nicht erreichbar: ' . $error, 0);
+            return null;
+        }
+        return $result;
     }
 
     private function ExecuteDueActions(array $config, int $now): void
