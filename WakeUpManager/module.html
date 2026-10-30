@@ -29,8 +29,9 @@
         font-size: 0.9em;
         opacity: 0.8;
     }
-    /* Schwelle für die Einstellungsansicht, abgeleitet aus den gemessenen Kachelgrößen */
-    @media (min-width: 340px) and (min-height: 400px) {
+    /* Schwelle für die Einstellungsansicht, abgeleitet aus den gemessenen Kachelgrößen:
+       Desktop maximiert ca. 627 x 468, Handy maximiert ca. 387 x 811, große Rasterkachel 468 x 468 (kompakt) */
+    @media (min-width: 500px) and (min-height: 400px), (min-width: 340px) and (min-height: 600px) {
         .compact {
             display: none;
         }
@@ -53,7 +54,7 @@
 </div>
 
 <script>
-    const LARGE_QUERY = '(min-width: 340px) and (min-height: 400px)';
+    const LARGE_QUERY = '(min-width: 500px) and (min-height: 400px), (min-width: 340px) and (min-height: 600px)';
     const loadId = Math.random().toString(36).substring(2, 8);
     let resizes = 0;
     let reportTimer = null;

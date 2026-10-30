@@ -57,6 +57,7 @@
             "delete": true,
             "columns": [
                 { "caption": "Action", "name": "Name", "width": "auto", "save": false },
+                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
                 {
                     "caption": "Offset",
                     "name": "Offset",
@@ -64,7 +65,6 @@
                     "align": "right",
                     "edit": { "type": "NumberSpinner", "suffix": " min", "minimum": -1440, "maximum": 1440 }
                 },
-                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
                 { "name": "ID", "visible": false, "save": true }
             ]
         },
