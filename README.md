@@ -15,6 +15,8 @@ Die Module steuern keine Geräte direkt und haben keine Abhängigkeiten zu ander
 
 - IP-Symcon ab Version 9.1
 
+Die Module sind auf Deutsch und Englisch verfügbar (Sprache der Konsole bzw. Visualisierung).
+
 ## Installation
 
 Im Module Control die Repository-URL hinzufügen:

@@ -115,27 +115,17 @@ class WakeUpManager extends IPSModuleStrict
         foreach ($this->GetReferenceList() as $reference) {
             $this->UnregisterReference($reference);
         }
-        foreach ($this->GetMessageList() as $senderID => $messages) {
-            foreach ($messages as $message) {
-                if ($message === IM_CHANGESTATUS || $message === IM_CHANGESETTINGS) {
-                    $this->UnregisterMessage($senderID, $message);
-                }
-            }
-        }
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         if ($actionInstance > 0) {
             $this->RegisterReference($actionInstance);
-            // Nach Neuladen (z. B. Modul-Update) oder Änderung der zentralen Aktionen neu berechnen.
-            if (IPS_InstanceExists($actionInstance)) {
-                $this->RegisterMessage($actionInstance, IM_CHANGESTATUS);
-                $this->RegisterMessage($actionInstance, IM_CHANGESETTINGS);
-            }
         }
 
+        // Andere Instanzen erst ansprechen, wenn der Kernel bereit ist; sonst übernimmt das IPS_KERNELSTARTED.
         if (IPS_GetKernelRunlevel() !== KR_READY) {
             return;
         }
 
+        $this->RegisterCatalogMessages();
         $this->Process();
 
         // Die Aktionsliste hängt von der gewählten zentralen Instanz ab.
@@ -145,6 +135,7 @@ class WakeUpManager extends IPSModuleStrict
     public function MessageSink(int $TimeStamp, int $SenderID, int $Message, array $Data): void
     {
         if ($Message === IPS_KERNELSTARTED) {
+            $this->RegisterCatalogMessages();
             $this->Process();
             return;
         }
@@ -152,6 +143,23 @@ class WakeUpManager extends IPSModuleStrict
             && $SenderID === $this->ReadPropertyInteger('ActionInstance')
             && IPS_GetKernelRunlevel() === KR_READY) {
             $this->Process();
+        }
+    }
+
+    // Nach Neuladen (z. B. Modul-Update) oder Änderung der zentralen Aktionen neu berechnen.
+    private function RegisterCatalogMessages(): void
+    {
+        foreach ($this->GetMessageList() as $senderID => $messages) {
+            foreach ($messages as $message) {
+                if ($message === IM_CHANGESTATUS || $message === IM_CHANGESETTINGS) {
+                    $this->UnregisterMessage($senderID, $message);
+                }
+            }
+        }
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        if ($actionInstance > 0 && IPS_InstanceExists($actionInstance)) {
+            $this->RegisterMessage($actionInstance, IM_CHANGESTATUS);
+            $this->RegisterMessage($actionInstance, IM_CHANGESETTINGS);
         }
     }
 
@@ -177,7 +185,7 @@ class WakeUpManager extends IPSModuleStrict
         $content = file_get_contents(__DIR__ . '/form.json');
         $form = is_string($content) ? json_decode($content, true) : null;
         if (!is_array($form) || !isset($form['elements']) || !is_array($form['elements'])) {
-            $this->SendDebug('Form', 'form.json nicht lesbar', 0);
+            $this->SendDebug('Form', 'form.json cannot be read', 0);
             return is_string($content) ? $content : '{}';
         }
 
@@ -185,16 +193,17 @@ class WakeUpManager extends IPSModuleStrict
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
         $selection = $this->LoadSelection();
 
+        // Captions übersetzt die Konsole anhand der locale.json; Translate() nur für Werte und Logmeldungen.
         foreach ($form['elements'] as &$element) {
             if (($element['name'] ?? '') === 'ActionsHint') {
                 if ($actionInstance <= 0) {
-                    $element['caption'] = 'Zentrale Aktionen auswählen und übernehmen, danach erscheinen hier die Aktionen zur Auswahl.';
+                    $element['caption'] = 'Select the central actions and apply; the actions will then be listed here.';
                     $element['visible'] = true;
                 } elseif ($catalog === null) {
-                    $element['caption'] = 'Die zentralen Aktionen sind nicht verfügbar. Die bisherige Auswahl bleibt erhalten.';
+                    $element['caption'] = 'The central actions are not available. The current selection is kept.';
                     $element['visible'] = true;
                 } elseif ($selection === null) {
-                    $element['caption'] = 'Die gespeicherte Aktionsauswahl ist nicht lesbar und wird nicht überschrieben.';
+                    $element['caption'] = 'The saved action selection cannot be read and will not be overwritten.';
                     $element['visible'] = true;
                 }
             }
@@ -219,10 +228,10 @@ class WakeUpManager extends IPSModuleStrict
 
     public function GetVisualizationTile(): string
     {
-        $this->SendDebug('Tile', 'GetVisualizationTile aufgerufen', 0);
+        $this->SendDebug('Tile', 'GetVisualizationTile called', 0);
         $html = file_get_contents(__DIR__ . '/module.html');
         if ($html === false) {
-            $this->SendDebug('Tile', 'module.html nicht lesbar', 0);
+            $this->SendDebug('Tile', 'module.html cannot be read', 0);
             return '';
         }
         return $html;
@@ -253,7 +262,7 @@ class WakeUpManager extends IPSModuleStrict
                 if (!isset($catalog[$id])) {
                     $rows[] = [
                         'ID'        => (string) $id,
-                        'Name'      => 'Nicht mehr vorhanden',
+                        'Name'      => $this->Translate('No longer available'),
                         'Active'    => $entry['Active'],
                         'rowColor'  => '#FFC0C0',
                         'deletable' => true
@@ -275,8 +284,8 @@ class WakeUpManager extends IPSModuleStrict
     {
         $semaphore = 'WUM_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($semaphore, 5000)) {
-            $this->SendDebug('Process', 'Semaphore konnte nicht gesetzt werden', 0);
-            $this->LogMessage('Weckroutine konnte nicht verarbeitet werden (Semaphore belegt)', KL_WARNING);
+            $this->SendDebug('Process', 'Semaphore could not be entered', 0);
+            $this->LogMessage($this->Translate('Wake-up routine could not be processed (semaphore busy)'), KL_WARNING);
             return;
         }
 
@@ -308,7 +317,7 @@ class WakeUpManager extends IPSModuleStrict
     {
         $time = json_decode($this->ReadPropertyString('WakeUpTime'), true);
         if (!is_array($time) || !$this->IsValidTimePart($time, 'hour', 23) || !$this->IsValidTimePart($time, 'minute', 59) || !$this->IsValidTimePart($time, 'second', 59)) {
-            $this->SendDebug('Configuration', 'Ungültige Weckzeit', 0);
+            $this->SendDebug('Configuration', 'Invalid wake-up time', 0);
             $this->SetStatus(self::STATUS_INVALID_TIME);
             return null;
         }
@@ -320,14 +329,14 @@ class WakeUpManager extends IPSModuleStrict
             }
         }
         if (count($weekdays) === 0) {
-            $this->SendDebug('Configuration', 'Kein Wochentag aktiviert', 0);
+            $this->SendDebug('Configuration', 'No weekday enabled', 0);
             $this->SetStatus(self::STATUS_NO_WEEKDAY);
             return null;
         }
 
         $selection = $this->LoadSelection();
         if ($selection === null) {
-            $this->LogMessage('Die Aktionsauswahl des Weckers ist nicht lesbar', KL_ERROR);
+            $this->LogMessage($this->Translate('The action selection of the alarm clock cannot be read'), KL_ERROR);
             $this->SetStatus(self::STATUS_INVALID_ACTIONS);
             return null;
         }
@@ -336,7 +345,7 @@ class WakeUpManager extends IPSModuleStrict
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
         if ($actionInstance > 0 && $catalog === null) {
-            $this->LogMessage('Die zentralen Aktionen des Weckers sind nicht verfügbar', KL_WARNING);
+            $this->LogMessage($this->Translate('The central actions of the alarm clock are not available'), KL_WARNING);
         }
 
         $actions = [];
@@ -345,7 +354,7 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             if ($catalog !== null && !isset($catalog[$id])) {
-                $this->SendDebug('Configuration', 'Ausgewählte Aktion ' . $id . ' existiert nicht mehr', 0);
+                $this->SendDebug('Configuration', 'Selected action ' . $id . ' no longer exists', 0);
                 continue;
             }
             // Nur Heizungsaktionen haben einen Zeitversatz. Ohne zentrale Aktionen ist die Gruppe unbekannt; die
@@ -382,7 +391,7 @@ class WakeUpManager extends IPSModuleStrict
         foreach ([...array_values(self::GROUP_PROPERTIES), self::LEGACY_PROPERTY] as $property) {
             $list = $this->DecodeList($this->ReadPropertyString($property));
             if ($list === null) {
-                $this->SendDebug('Configuration', 'Aktionsauswahl ' . $property . ' ist nicht lesbar', 0);
+                $this->SendDebug('Configuration', 'Action selection ' . $property . ' cannot be read', 0);
                 return null;
             }
             array_push($rows, ...$list);
@@ -392,7 +401,7 @@ class WakeUpManager extends IPSModuleStrict
         foreach ($rows as $index => $row) {
             $id = is_array($row) ? ($row['ID'] ?? null) : null;
             if (!is_string($id) || $id === '') {
-                $this->SendDebug('Configuration', 'Auswahl ' . ($index + 1) . ': fehlende ID', 0);
+                $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': missing ID', 0);
                 continue;
             }
             if (isset($selection[$id])) {
@@ -404,7 +413,7 @@ class WakeUpManager extends IPSModuleStrict
                 $offset = (int) $offset;
             }
             if (!is_int($offset) || abs($offset) > self::MAX_OFFSET) {
-                $this->SendDebug('Configuration', 'Auswahl ' . ($index + 1) . ': ungültiger Zeitversatz', 0);
+                $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid offset', 0);
                 continue;
             }
             $selection[$id] = [
@@ -419,12 +428,12 @@ class WakeUpManager extends IPSModuleStrict
     private function LoadCatalog(int $instanceID): ?array
     {
         if ($this->CallCatalog(static fn () => IPS_InstanceExists($instanceID)) !== true) {
-            $this->SendDebug('Catalog', 'Instanz ' . $instanceID . ' existiert nicht', 0);
+            $this->SendDebug('Catalog', 'Instance ' . $instanceID . ' does not exist', 0);
             return null;
         }
         $instance = $this->CallCatalog(static fn () => IPS_GetInstance($instanceID));
         if (!is_array($instance) || ($instance['ModuleInfo']['ModuleID'] ?? '') !== self::ACTIONS_MODULE_ID) {
-            $this->SendDebug('Catalog', 'Instanz ' . $instanceID . ' ist keine WakeUpActions-Instanz', 0);
+            $this->SendDebug('Catalog', 'Instance ' . $instanceID . ' is not a WakeUpActions instance', 0);
             return null;
         }
         $rows = [];
@@ -432,7 +441,7 @@ class WakeUpManager extends IPSModuleStrict
             $raw = $this->CallCatalog(static fn () => IPS_GetProperty($instanceID, $property));
             $list = is_string($raw) ? $this->DecodeList($raw) : null;
             if ($list === null) {
-                $this->SendDebug('Catalog', 'Zentrale Aktionsliste ' . $property . ' ist nicht lesbar', 0);
+                $this->SendDebug('Catalog', 'Central action list ' . $property . ' cannot be read', 0);
                 return null;
             }
             foreach ($list as $row) {
@@ -442,10 +451,10 @@ class WakeUpManager extends IPSModuleStrict
 
         $catalog = [];
         foreach ($rows as $index => [$group, $row]) {
-            $label = 'Zentrale Aktion ' . ($index + 1);
+            $label = sprintf($this->Translate('Central action %d'), $index + 1);
             $id = is_array($row) ? ($row['ID'] ?? null) : null;
             if (!is_string($id) || $id === '' || isset($catalog[$id])) {
-                $this->SendDebug('Catalog', $label . ': fehlende oder doppelte ID', 0);
+                $this->SendDebug('Catalog', $label . ': missing or duplicate ID', 0);
                 continue;
             }
             $name = is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $label;
@@ -457,7 +466,7 @@ class WakeUpManager extends IPSModuleStrict
             }
             $valid = is_array($action) && is_string($action['actionID'] ?? null) && $action['actionID'] !== '' && is_array($action['parameters'] ?? []);
             if (!$valid) {
-                $this->SendDebug('Catalog', $name . ': keine gültige Aktion ausgewählt', 0);
+                $this->SendDebug('Catalog', $name . ': no valid action selected', 0);
             }
             $catalog[$id] = [
                 'name'       => $name,
@@ -487,7 +496,7 @@ class WakeUpManager extends IPSModuleStrict
         }
 
         if ($error !== null) {
-            $this->SendDebug('Catalog', 'Zentrale Instanz nicht erreichbar: ' . $error, 0);
+            $this->SendDebug('Catalog', 'Central instance not reachable: ' . $error, 0);
             return null;
         }
         return $result;
@@ -504,9 +513,9 @@ class WakeUpManager extends IPSModuleStrict
             $skipped = $this->GetActionEvents($config, $skippedFrom, $windowStart);
             if (count($skipped) > 0) {
                 foreach ($skipped as $event) {
-                    $this->SendDebug('Skipped', $event['action']['label'] . ' war fällig um ' . $this->FormatTime($event['time']), 0);
+                    $this->SendDebug('Skipped', $event['action']['label'] . ' was due at ' . $this->FormatTime($event['time']), 0);
                 }
-                $this->LogMessage(count($skipped) . ' verpasste Aktion(en) wurden nicht nachgeholt', KL_WARNING);
+                $this->LogMessage(sprintf($this->Translate('%d missed action(s) were not executed'), count($skipped)), KL_WARNING);
             }
         }
 
@@ -519,7 +528,7 @@ class WakeUpManager extends IPSModuleStrict
             $occurrence = (string) $event['occurrence'];
             $key = $event['action']['key'];
             if (in_array($key, $executed[$occurrence] ?? [], true)) {
-                $this->SendDebug('Execute', $event['action']['label'] . ' wurde in diesem Weckvorgang bereits ausgeführt', 0);
+                $this->SendDebug('Execute', $event['action']['label'] . ' was already executed for this wake-up', 0);
                 continue;
             }
             $executed[$occurrence][] = $key;
@@ -550,21 +559,21 @@ class WakeUpManager extends IPSModuleStrict
     {
         $definition = $catalog[$action['key']] ?? null;
         if ($definition === null || $definition['actionID'] === null) {
-            $this->SendDebug('Execute', $action['label'] . ' nicht ausführbar (zentrale Aktion nicht verfügbar)', 0);
-            $this->LogMessage('Weckaktion nicht ausführbar: ' . $action['label'], KL_WARNING);
+            $this->SendDebug('Execute', $action['label'] . ' not executable (central action not available)', 0);
+            $this->LogMessage(sprintf($this->Translate('Wake-up action not executable: %s'), $action['label']), KL_WARNING);
             return;
         }
 
         try {
             if (IPS_RunAction($definition['actionID'], $definition['parameters'])) {
-                $this->SendDebug('Execute', $action['label'] . ' ausgeführt', 0);
+                $this->SendDebug('Execute', $action['label'] . ' executed', 0);
             } else {
-                $this->SendDebug('Execute', $action['label'] . ' fehlgeschlagen', 0);
-                $this->LogMessage('Weckaktion fehlgeschlagen: ' . $action['label'], KL_WARNING);
+                $this->SendDebug('Execute', $action['label'] . ' failed', 0);
+                $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $action['label']), KL_WARNING);
             }
         } catch (Throwable $e) {
-            $this->SendDebug('Execute', $action['label'] . ' fehlgeschlagen: ' . $e->getMessage(), 0);
-            $this->LogMessage('Weckaktion fehlgeschlagen: ' . $action['label'], KL_WARNING);
+            $this->SendDebug('Execute', $action['label'] . ' failed: ' . $e->getMessage(), 0);
+            $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $action['label']), KL_WARNING);
         }
     }
 
@@ -589,14 +598,14 @@ class WakeUpManager extends IPSModuleStrict
         }
 
         if ($next === null) {
-            $this->SendDebug('Schedule', 'Kein nächster Zeitpunkt gefunden', 0);
+            $this->SendDebug('Schedule', 'No next point in time found', 0);
             $this->SetTimerInterval(self::TIMER, 0);
             return;
         }
 
         $interval = max(100, (int) ceil(($next - microtime(true)) * 1000));
         $this->SetTimerInterval(self::TIMER, $interval);
-        $this->SendDebug('Schedule', 'Nächster Zeitpunkt: ' . $this->FormatTime($next) . ', nächste Weckzeit: ' . ($nextWakeUp === null ? '-' : $this->FormatTime($nextWakeUp)), 0);
+        $this->SendDebug('Schedule', 'Next point in time: ' . $this->FormatTime($next) . ', next wake-up: ' . ($nextWakeUp === null ? '-' : $this->FormatTime($nextWakeUp)), 0);
     }
 
     // Liefert alle Aktionszeitpunkte im Intervall ($from, $to], sortiert nach Zeit und Listenreihenfolge.
@@ -649,7 +658,7 @@ class WakeUpManager extends IPSModuleStrict
         if (!is_array($executed)) {
             // Reine Verwaltungsdaten ohne Benutzerinhalt; ein Neuaufbau ist sicher, da LastProcessed
             // eine erneute Ausführung bereits abgearbeiteter Zeitpunkte verhindert.
-            $this->SendDebug('State', 'Ausführungsprotokoll nicht lesbar, wird neu aufgebaut', 0);
+            $this->SendDebug('State', 'Execution log cannot be read, rebuilding', 0);
             return [];
         }
         $result = [];

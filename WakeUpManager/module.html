@@ -22,19 +22,19 @@
         font-weight: bold;
         color: var(--accent-color, inherit);
     }
-    .mode::after {
-        content: "Kompakt";
+    .large, .details {
+        display: none;
     }
     .details {
-        display: none;
         font-size: 0.9em;
         opacity: 0.8;
     }
-    @media (min-width: 500px) and (min-height: 400px) {
-        .mode::after {
-            content: "Groß (Einstellungen würden hier erscheinen)";
+    /* Schwelle für die Einstellungsansicht, abgeleitet aus den gemessenen Kachelgrößen */
+    @media (min-width: 340px) and (min-height: 400px) {
+        .compact {
+            display: none;
         }
-        .details {
+        .large, .details {
             display: block;
         }
     }
@@ -42,16 +42,18 @@
 
 <div class="probe">
     <div class="size" id="size">-</div>
-    <div class="mode"></div>
+    <div class="compact">Compact</div>
+    <div class="large">Large (settings would appear here)</div>
     <div class="details">
-        <div>Lade-ID: <span id="loadId">-</span></div>
-        <div>Größenänderungen: <span id="resizes">0</span></div>
-        <div>Pixelverhältnis: <span id="ratio">-</span></div>
-        <div>Im iframe: <span id="frame">-</span></div>
+        <div><span>Load ID</span>: <span id="loadId">-</span></div>
+        <div><span>Resizes</span>: <span id="resizes">0</span></div>
+        <div><span>Pixel ratio</span>: <span id="ratio">-</span></div>
+        <div><span>In iframe</span>: <span id="frame">-</span></div>
     </div>
 </div>
 
 <script>
+    const LARGE_QUERY = '(min-width: 340px) and (min-height: 400px)';
     const loadId = Math.random().toString(36).substring(2, 8);
     let resizes = 0;
     let reportTimer = null;
@@ -70,7 +72,7 @@
             width: window.innerWidth,
             height: window.innerHeight,
             ratio: window.devicePixelRatio,
-            large: window.matchMedia('(min-width: 500px) and (min-height: 400px)').matches,
+            large: window.matchMedia(LARGE_QUERY).matches,
             resizes: resizes,
             framed: isFramed()
         };
@@ -82,7 +84,7 @@
         document.getElementById('loadId').textContent = m.loadId;
         document.getElementById('resizes').textContent = m.resizes;
         document.getElementById('ratio').textContent = m.ratio;
-        document.getElementById('frame').textContent = m.framed ? 'ja' : 'nein';
+        document.getElementById('frame').textContent = translate(m.framed ? 'yes' : 'no');
     }
 
     // Messwerte gesammelt an das Modul schicken, damit sie im Debug-Fenster der Instanz erscheinen.

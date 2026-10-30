@@ -84,8 +84,8 @@ class WakeUpActions extends IPSModuleStrict
         parent::ApplyChanges();
 
         if ($this->DecodeList($this->ReadPropertyString(self::LEGACY_PROPERTY)) !== []) {
-            $this->SendDebug('Configuration', 'Bisherige Aktionsliste wurde nicht übernommen', 0);
-            $this->LogMessage('Die bisherige zentrale Aktionsliste konnte nicht in die Gruppen übernommen werden', KL_ERROR);
+            $this->SendDebug('Configuration', 'Previous action list was not migrated', 0);
+            $this->LogMessage($this->Translate('The previous central action list could not be migrated to the groups'), KL_ERROR);
             $this->SetStatus(self::STATUS_LEGACY_NOT_MIGRATED);
             return;
         }
@@ -94,8 +94,8 @@ class WakeUpActions extends IPSModuleStrict
         foreach (self::GROUP_PROPERTIES as $property) {
             $rows = $this->DecodeList($this->ReadPropertyString($property));
             if ($rows === null) {
-                $this->SendDebug('Configuration', $property . ' ist nicht lesbar', 0);
-                $this->LogMessage('Die zentrale Aktionsliste ist nicht lesbar', KL_ERROR);
+                $this->SendDebug('Configuration', $property . ' cannot be read', 0);
+                $this->LogMessage($this->Translate('The central action list cannot be read'), KL_ERROR);
                 $this->SetStatus(self::STATUS_INVALID_ACTIONS);
                 return;
             }
@@ -103,8 +103,8 @@ class WakeUpActions extends IPSModuleStrict
                 $id = is_array($row) ? ($row['ID'] ?? null) : null;
                 if (!is_string($id) || $id === '' || isset($ids[$id])) {
                     // Ohne eindeutige ID kann kein Wecker die Aktion auswählen.
-                    $this->SendDebug('Configuration', $property . ', Eintrag ' . ($index + 1) . ': fehlende oder doppelte ID', 0);
-                    $this->LogMessage('Die zentrale Aktionsliste enthält Einträge ohne eindeutige ID', KL_ERROR);
+                    $this->SendDebug('Configuration', $property . ', entry ' . ($index + 1) . ': missing or duplicate ID', 0);
+                    $this->LogMessage($this->Translate('The central action list contains entries without a unique ID'), KL_ERROR);
                     $this->SetStatus(self::STATUS_INVALID_ACTIONS);
                     return;
                 }
@@ -112,7 +112,7 @@ class WakeUpActions extends IPSModuleStrict
             }
         }
 
-        $this->SendDebug('Configuration', count($ids) . ' Aktion(en)', 0);
+        $this->SendDebug('Configuration', count($ids) . ' action(s)', 0);
         $this->SetStatus(IS_ACTIVE);
     }
 

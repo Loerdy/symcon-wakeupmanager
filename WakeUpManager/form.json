@@ -1,261 +1,106 @@
 {
     "elements": [
-        {
-            "type": "CheckBox",
-            "name": "Active",
-            "caption": "Wecker aktiv"
-        },
-        {
-            "type": "SelectTime",
-            "name": "WakeUpTime",
-            "caption": "Weckzeit"
-        },
-        {
-            "type": "Label",
-            "caption": "Aktive Wochentage"
-        },
+        { "type": "CheckBox", "name": "Active", "caption": "Alarm clock active" },
+        { "type": "SelectTime", "name": "WakeUpTime", "caption": "Wake-up time" },
+        { "type": "Label", "caption": "Active weekdays" },
         {
             "type": "RowLayout",
             "items": [
-                {
-                    "type": "CheckBox",
-                    "name": "Monday",
-                    "caption": "Mo"
-                },
-                {
-                    "type": "CheckBox",
-                    "name": "Tuesday",
-                    "caption": "Di"
-                },
-                {
-                    "type": "CheckBox",
-                    "name": "Wednesday",
-                    "caption": "Mi"
-                },
-                {
-                    "type": "CheckBox",
-                    "name": "Thursday",
-                    "caption": "Do"
-                },
-                {
-                    "type": "CheckBox",
-                    "name": "Friday",
-                    "caption": "Fr"
-                },
-                {
-                    "type": "CheckBox",
-                    "name": "Saturday",
-                    "caption": "Sa"
-                },
-                {
-                    "type": "CheckBox",
-                    "name": "Sunday",
-                    "caption": "So"
-                }
+                { "type": "CheckBox", "name": "Monday", "caption": "Mon" },
+                { "type": "CheckBox", "name": "Tuesday", "caption": "Tue" },
+                { "type": "CheckBox", "name": "Wednesday", "caption": "Wed" },
+                { "type": "CheckBox", "name": "Thursday", "caption": "Thu" },
+                { "type": "CheckBox", "name": "Friday", "caption": "Fri" },
+                { "type": "CheckBox", "name": "Saturday", "caption": "Sat" },
+                { "type": "CheckBox", "name": "Sunday", "caption": "Sun" }
             ]
         },
         {
             "type": "SelectInstance",
             "name": "ActionInstance",
-            "caption": "Zentrale Aktionen (WakeUpActions)",
-            "validModules": [
-                "{4E963960-1F66-A246-3BC9-BA42E525A6F7}"
-            ]
+            "caption": "Central actions (WakeUpActions)",
+            "validModules": ["{4E963960-1F66-A246-3BC9-BA42E525A6F7}"]
         },
-        {
-            "type": "Label",
-            "name": "ActionsHint",
-            "caption": "",
-            "visible": false
-        },
+        { "type": "Label", "name": "ActionsHint", "caption": "", "visible": false },
         {
             "type": "List",
             "name": "ActionsLight",
-            "caption": "Lampen",
+            "caption": "Lights",
             "rowCount": 4,
             "add": false,
             "delete": true,
             "columns": [
-                {
-                    "caption": "Aktion",
-                    "name": "Name",
-                    "width": "auto",
-                    "save": false
-                },
-                {
-                    "caption": "Ausführen",
-                    "name": "Active",
-                    "width": "110px",
-                    "edit": {
-                        "type": "CheckBox"
-                    }
-                },
-                {
-                    "name": "ID",
-                    "visible": false,
-                    "save": true
-                }
+                { "caption": "Action", "name": "Name", "width": "auto", "save": false },
+                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
+                { "name": "ID", "visible": false, "save": true }
             ]
         },
         {
             "type": "List",
             "name": "ActionsShutter",
-            "caption": "Rollläden",
+            "caption": "Shutters",
             "rowCount": 4,
             "add": false,
             "delete": true,
             "columns": [
-                {
-                    "caption": "Aktion",
-                    "name": "Name",
-                    "width": "auto",
-                    "save": false
-                },
-                {
-                    "caption": "Ausführen",
-                    "name": "Active",
-                    "width": "110px",
-                    "edit": {
-                        "type": "CheckBox"
-                    }
-                },
-                {
-                    "name": "ID",
-                    "visible": false,
-                    "save": true
-                }
+                { "caption": "Action", "name": "Name", "width": "auto", "save": false },
+                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
+                { "name": "ID", "visible": false, "save": true }
             ]
         },
         {
             "type": "List",
             "name": "ActionsHeating",
-            "caption": "Heizung (Zeitversatz in Minuten: negativ = vor der Weckzeit, positiv = danach)",
+            "caption": "Heating (offset in minutes: negative = before the wake-up time, positive = after)",
             "rowCount": 4,
             "add": false,
             "delete": true,
             "columns": [
+                { "caption": "Action", "name": "Name", "width": "auto", "save": false },
                 {
-                    "caption": "Aktion",
-                    "name": "Name",
-                    "width": "auto",
-                    "save": false
-                },
-                {
-                    "caption": "Ausführen",
-                    "name": "Active",
-                    "width": "110px",
-                    "edit": {
-                        "type": "CheckBox"
-                    }
-                },
-                {
-                    "caption": "Zeitversatz",
+                    "caption": "Offset",
                     "name": "Offset",
                     "width": "160px",
                     "align": "right",
-                    "edit": {
-                        "type": "NumberSpinner",
-                        "suffix": " min",
-                        "minimum": -1440,
-                        "maximum": 1440
-                    }
+                    "edit": { "type": "NumberSpinner", "suffix": " min", "minimum": -1440, "maximum": 1440 }
                 },
-                {
-                    "name": "ID",
-                    "visible": false,
-                    "save": true
-                }
+                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
+                { "name": "ID", "visible": false, "save": true }
             ]
         },
         {
             "type": "List",
             "name": "ActionsOther",
-            "caption": "Sonstiges",
+            "caption": "Other",
             "rowCount": 4,
             "add": false,
             "delete": true,
             "columns": [
-                {
-                    "caption": "Aktion",
-                    "name": "Name",
-                    "width": "auto",
-                    "save": false
-                },
-                {
-                    "caption": "Ausführen",
-                    "name": "Active",
-                    "width": "110px",
-                    "edit": {
-                        "type": "CheckBox"
-                    }
-                },
-                {
-                    "name": "ID",
-                    "visible": false,
-                    "save": true
-                }
+                { "caption": "Action", "name": "Name", "width": "auto", "save": false },
+                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
+                { "name": "ID", "visible": false, "save": true }
             ]
         },
         {
             "type": "List",
             "name": "ActionsScript",
-            "caption": "Skripte",
+            "caption": "Scripts",
             "rowCount": 4,
             "add": false,
             "delete": true,
             "columns": [
-                {
-                    "caption": "Aktion",
-                    "name": "Name",
-                    "width": "auto",
-                    "save": false
-                },
-                {
-                    "caption": "Ausführen",
-                    "name": "Active",
-                    "width": "110px",
-                    "edit": {
-                        "type": "CheckBox"
-                    }
-                },
-                {
-                    "name": "ID",
-                    "visible": false,
-                    "save": true
-                }
+                { "caption": "Action", "name": "Name", "width": "auto", "save": false },
+                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
+                { "name": "ID", "visible": false, "save": true }
             ]
         }
     ],
     "status": [
-        {
-            "code": 102,
-            "icon": "active",
-            "caption": "Wecker ist aktiv"
-        },
-        {
-            "code": 104,
-            "icon": "inactive",
-            "caption": "Wecker ist deaktiviert"
-        },
-        {
-            "code": 201,
-            "icon": "error",
-            "caption": "Die Weckzeit ist ungültig"
-        },
-        {
-            "code": 202,
-            "icon": "error",
-            "caption": "Es ist kein Wochentag aktiviert"
-        },
-        {
-            "code": 203,
-            "icon": "error",
-            "caption": "Die Aktionsauswahl ist nicht lesbar"
-        },
-        {
-            "code": 204,
-            "icon": "error",
-            "caption": "Die zentralen Aktionen sind nicht verfügbar"
-        }
+        { "code": 102, "icon": "active", "caption": "Alarm clock is active" },
+        { "code": 104, "icon": "inactive", "caption": "Alarm clock is inactive" },
+        { "code": 201, "icon": "error", "caption": "The wake-up time is invalid" },
+        { "code": 202, "icon": "error", "caption": "No weekday is enabled" },
+        { "code": 203, "icon": "error", "caption": "The action selection cannot be read" },
+        { "code": 204, "icon": "error", "caption": "The central actions are not available" }
     ]
 }
