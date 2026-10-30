@@ -1,0 +1,81 @@
+{
+    "elements": [
+        {
+            "type": "CheckBox",
+            "name": "Active",
+            "caption": "Wecker aktiv"
+        },
+        {
+            "type": "SelectTime",
+            "name": "WakeUpTime",
+            "caption": "Weckzeit"
+        },
+        {
+            "type": "Label",
+            "caption": "Aktive Wochentage"
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "CheckBox", "name": "Monday", "caption": "Mo" },
+                { "type": "CheckBox", "name": "Tuesday", "caption": "Di" },
+                { "type": "CheckBox", "name": "Wednesday", "caption": "Mi" },
+                { "type": "CheckBox", "name": "Thursday", "caption": "Do" },
+                { "type": "CheckBox", "name": "Friday", "caption": "Fr" },
+                { "type": "CheckBox", "name": "Saturday", "caption": "Sa" },
+                { "type": "CheckBox", "name": "Sunday", "caption": "So" }
+            ]
+        },
+        {
+            "type": "List",
+            "name": "Actions",
+            "caption": "Aktionen (Zeitversatz in Minuten: negativ = vor der Weckzeit, 0 = zur Weckzeit, positiv = danach)",
+            "rowCount": 8,
+            "add": true,
+            "delete": true,
+            "sort": {
+                "column": "Offset",
+                "direction": "ascending"
+            },
+            "columns": [
+                {
+                    "caption": "Aktiv",
+                    "name": "Active",
+                    "width": "80px",
+                    "add": true,
+                    "edit": { "type": "CheckBox" }
+                },
+                {
+                    "caption": "Bezeichnung",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                },
+                {
+                    "caption": "Zeitversatz (min)",
+                    "name": "Offset",
+                    "width": "160px",
+                    "align": "right",
+                    "add": 0,
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'CheckBox', 'name' => 'Active', 'caption' => 'Aktiv'],",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Bezeichnung', 'width' => '400px'],",
+                "    ['type' => 'NumberSpinner', 'name' => 'Offset', 'caption' => 'Zeitversatz zur Weckzeit (negativ = vorher, positiv = danach)', 'suffix' => ' min', 'minimum' => -1440, 'maximum' => 1440],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Aktion', 'width' => '600px']",
+                "];"
+            ]
+        }
+    ],
+    "status": [
+        { "code": 102, "icon": "active", "caption": "Wecker ist aktiv" },
+        { "code": 104, "icon": "inactive", "caption": "Wecker ist deaktiviert" },
+        { "code": 201, "icon": "error", "caption": "Die Weckzeit ist ungültig" },
+        { "code": 202, "icon": "error", "caption": "Es ist kein Wochentag aktiviert" },
+        { "code": 203, "icon": "error", "caption": "Die Aktionsliste ist nicht lesbar" }
+    ]
+}
