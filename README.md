@@ -48,6 +48,10 @@ Ein negativer Zeitversatz kann auf den Vortag fallen: Bei Weckzeit 06:30 an eine
 - Beim (Re-)Aktivieren des Weckers wird nichts nachgeholt, auch nicht innerhalb der 5 Minuten. Zeitpunkte während der Deaktivierung entfallen.
 - Schlägt eine Aktion fehl, werden die übrigen Aktionen trotzdem ausgeführt. Der Fehler erscheint im Debug und als Warnung im Meldungsfenster.
 
+## Kachel (Testphase)
+
+Die Instanz stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre eigene Größe in Pixeln an und schreibt die Messwerte ins Debug-Fenster der Instanz (`TileProbe`). Ab IP-Symcon 9.1 wird die HTML-Kachel auch in der maximierten Ansicht verwendet. Die eigentliche Wecker-Kachel folgt.
+
 ## Statuscodes
 
 | Code | Bedeutung |

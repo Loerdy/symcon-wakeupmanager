@@ -44,6 +44,14 @@ class WakeUpManager extends IPSModuleStrict
         $this->RegisterAttributeString('Executed', '{}');
 
         $this->RegisterTimer(self::TIMER, 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProcessTimer\', 0);');
+
+        // Ab IP-Symcon 9.1 wird die HTML-Kachel auch im maximierten Zustand verwendet. Die Konstanten sind
+        // erst ab 9.1 dokumentiert, daher als Rückfall der Zahlenwert 1 (INSTANCE_VISUALIZATION_TYPE_HTML).
+        if (defined('INSTANCE_VISUALIZATION_TYPE_HTML_FULLSCREEN')) {
+            $this->SetVisualizationType(INSTANCE_VISUALIZATION_TYPE_HTML_FULLSCREEN);
+        } else {
+            $this->SetVisualizationType(1);
+        }
     }
 
     public function ApplyChanges(): void
@@ -72,9 +80,26 @@ class WakeUpManager extends IPSModuleStrict
             case 'ProcessTimer':
                 $this->Process();
                 break;
+            case 'TileProbe':
+                // Vorläufig: Messwerte der Test-Kachel nur protokollieren.
+                if (is_string($Value)) {
+                    $this->SendDebug('TileProbe', substr($Value, 0, 500), 0);
+                }
+                break;
             default:
                 throw new Exception('Invalid Ident');
         }
+    }
+
+    public function GetVisualizationTile(): string
+    {
+        $this->SendDebug('Tile', 'GetVisualizationTile aufgerufen', 0);
+        $html = file_get_contents(__DIR__ . '/module.html');
+        if ($html === false) {
+            $this->SendDebug('Tile', 'module.html nicht lesbar', 0);
+            return '';
+        }
+        return $html;
     }
 
     private function Process(): void

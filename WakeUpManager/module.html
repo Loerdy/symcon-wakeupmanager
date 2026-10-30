@@ -1,0 +1,110 @@
+<!-- Vorläufige Test-Kachel: ermittelt Größe und Ladeverhalten der Kachel (normal / maximiert). -->
+<style>
+    html, body {
+        margin: 0;
+        height: 100%;
+        font-family: sans-serif;
+        color: var(--content-color, inherit);
+    }
+    .probe {
+        box-sizing: border-box;
+        height: 100%;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 4px;
+    }
+    .size {
+        font-size: 1.8em;
+        font-weight: bold;
+        color: var(--accent-color, inherit);
+    }
+    .mode::after {
+        content: "Kompakt";
+    }
+    .details {
+        display: none;
+        font-size: 0.9em;
+        opacity: 0.8;
+    }
+    @media (min-width: 500px) and (min-height: 400px) {
+        .mode::after {
+            content: "Groß (Einstellungen würden hier erscheinen)";
+        }
+        .details {
+            display: block;
+        }
+    }
+</style>
+
+<div class="probe">
+    <div class="size" id="size">-</div>
+    <div class="mode"></div>
+    <div class="details">
+        <div>Lade-ID: <span id="loadId">-</span></div>
+        <div>Größenänderungen: <span id="resizes">0</span></div>
+        <div>Pixelverhältnis: <span id="ratio">-</span></div>
+        <div>Im iframe: <span id="frame">-</span></div>
+    </div>
+</div>
+
+<script>
+    const loadId = Math.random().toString(36).substring(2, 8);
+    let resizes = 0;
+    let reportTimer = null;
+
+    function isFramed() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function measure() {
+        return {
+            loadId: loadId,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            ratio: window.devicePixelRatio,
+            large: window.matchMedia('(min-width: 500px) and (min-height: 400px)').matches,
+            resizes: resizes,
+            framed: isFramed()
+        };
+    }
+
+    function render() {
+        const m = measure();
+        document.getElementById('size').textContent = m.width + ' × ' + m.height;
+        document.getElementById('loadId').textContent = m.loadId;
+        document.getElementById('resizes').textContent = m.resizes;
+        document.getElementById('ratio').textContent = m.ratio;
+        document.getElementById('frame').textContent = m.framed ? 'ja' : 'nein';
+    }
+
+    // Messwerte gesammelt an das Modul schicken, damit sie im Debug-Fenster der Instanz erscheinen.
+    function report(reason) {
+        clearTimeout(reportTimer);
+        reportTimer = setTimeout(function () {
+            const m = measure();
+            m.reason = reason;
+            requestAction('TileProbe', JSON.stringify(m));
+        }, 500);
+    }
+
+    window.addEventListener('resize', function () {
+        resizes++;
+        render();
+        report('resize');
+    });
+
+    function handleMessage(data) {
+        // Die Test-Kachel empfängt noch keine Daten vom Modul.
+    }
+
+    render();
+    report('load');
+</script>
