@@ -1,0 +1,12 @@
+{
+    "id": "{C30F8EC8-CAC0-7664-CD58-9232B03A2369}",
+    "author": "Loerdy",
+    "name": "WakeUpManager",
+    "url": "https://github.com/Loerdy/symcon-wakeupmanager",
+    "compatibility": {
+        "version": "9.1"
+    },
+    "version": "1.0",
+    "build": 0,
+    "date": 1793437516
+}

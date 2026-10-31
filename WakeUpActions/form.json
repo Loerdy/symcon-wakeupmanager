@@ -1,0 +1,185 @@
+{
+    "elements": [
+        {
+            "type": "Label",
+            "caption": "Central actions for all alarm clocks, by group. Each alarm clock selects which actions are executed."
+        },
+        {
+            "type": "List",
+            "name": "ActionsLight",
+            "caption": "Lights",
+            "rowCount": 4,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": {
+                        "strategy": "guid"
+                    },
+                    "save": true
+                },
+                {
+                    "caption": "Name",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "];"
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsShutter",
+            "caption": "Shutters",
+            "rowCount": 4,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": {
+                        "strategy": "guid"
+                    },
+                    "save": true
+                },
+                {
+                    "caption": "Name",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "];"
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsHeating",
+            "caption": "Heating",
+            "rowCount": 4,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": {
+                        "strategy": "guid"
+                    },
+                    "save": true
+                },
+                {
+                    "caption": "Name",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "];"
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsOther",
+            "caption": "Other",
+            "rowCount": 4,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": {
+                        "strategy": "guid"
+                    },
+                    "save": true
+                },
+                {
+                    "caption": "Name",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "];"
+            ]
+        },
+        {
+            "type": "List",
+            "name": "ActionsScript",
+            "caption": "Scripts",
+            "rowCount": 4,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": {
+                        "strategy": "guid"
+                    },
+                    "save": true
+                },
+                {
+                    "caption": "Name",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "];"
+            ]
+        }
+    ],
+    "status": [
+        {
+            "code": 102,
+            "icon": "active",
+            "caption": "Action list is ready"
+        },
+        {
+            "code": 201,
+            "icon": "error",
+            "caption": "The action list is invalid"
+        },
+        {
+            "code": 202,
+            "icon": "error",
+            "caption": "The previous action list could not be migrated"
+        }
+    ]
+}

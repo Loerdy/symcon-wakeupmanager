@@ -1,0 +1,804 @@
+<script src="/icons.js"></script>
+<style>
+    /* Abstände und Schrift setzt die Visualisierung am body (u. a. Platz für die Titelzeile der maximierten Kachel),
+       deshalb body-Margins nicht überschreiben. Als Flex-Element füllt body den Rest abzüglich dieser Margins. */
+    html {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    body {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+        color: var(--content-color);
+    }
+    /* Farben ausschließlich aus dem Design der Visualisierung (CSS-Variablen des HTML-SDK) */
+    :root {
+        --line-color: color-mix(in srgb, var(--content-color) 30%, transparent);
+        --soft-line-color: color-mix(in srgb, var(--content-color) 15%, transparent);
+    }
+    .view {
+        box-sizing: border-box;
+        height: 100%;
+    }
+    .muted {
+        opacity: 0.6;
+    }
+
+    /* Kompakte Ansicht: nächste Weckzeit */
+    .compact {
+        /* Größen beziehen sich auf den tatsächlich verfügbaren Inhaltsbereich (Container-Einheiten), nicht auf
+           die ganze Kachel: Die Titelzeile ist je nach Design unterschiedlich hoch. */
+        container-type: size;
+        /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
+           und Raum für Icon und Tag. */
+        --time-size: min(31cqw, 36cqh);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        gap: 3px;
+    }
+    .compact .icon {
+        font-size: min(13cqw, 14cqh);
+        line-height: 1;
+        color: var(--accent-color);
+        cursor: pointer;
+        padding: 2px;
+    }
+    .compact .icon.off {
+        color: inherit;
+        opacity: 0.4;
+    }
+    .compact .icon.hidden {
+        display: none;
+    }
+    /* Zeitfeld mit festem Rahmen wie die Weckzeit in der Einstellungsansicht */
+    /* Feste Höhe und Breite, damit alle Darstellungen gleich groß wirken */
+    .compact .time {
+        box-sizing: content-box;
+        height: var(--time-size);
+        width: calc(var(--time-size) * 2.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(var(--time-size) * 0.1) calc(var(--time-size) * 0.16);
+        border: 1px solid var(--line-color);
+        border-radius: calc(var(--time-size) * 0.14);
+        /* Standard-Schrift so groß, dass "08:15" die Feldbreite etwa wie die Klappzahlen füllt */
+        font-size: var(--time-size);
+        font-weight: 600;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+    /* Digital: selbst gezeichnete 7-Segment-Ziffern (SVG, Seitenverhältnis 286 : 100) */
+    .digital svg {
+        display: block;
+        height: calc(var(--time-size) * 0.8);
+        width: calc(var(--time-size) * 0.8 * 2.86);
+    }
+    .digital .seg {
+        fill: currentColor;
+        opacity: 0.08;
+    }
+    .digital .seg.on, .digital .colon {
+        fill: var(--accent-color);
+        opacity: 1;
+    }
+    .muted.digital .seg.on, .muted.digital .colon {
+        fill: currentColor;
+    }
+
+    /* Klappzahlen: je Ziffer eine Karte aus oberer und unterer Hälfte, beim Wechsel klappt ein Blatt um */
+    /* Kartenhöhe 1.1em = 92 % des Zeitfelds */
+    .compact .time.flip {
+        gap: 0.05em;
+        font-size: calc(var(--time-size) * 0.84);
+    }
+    .flip .card {
+        position: relative;
+        width: 0.72em;
+        height: 1.1em;
+        perspective: 3em;
+    }
+    .flip .half, .flip .leaf, .flip .face {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 50%;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--content-color) 12%, var(--card-color));
+    }
+    .flip .top, .flip .leaf, .flip .face.front {
+        top: 0;
+        border-radius: 0.08em 0.08em 0 0;
+    }
+    .flip .bottom, .flip .face.back {
+        top: 50%;
+        border-radius: 0 0 0.08em 0.08em;
+    }
+    /* Trennfuge zwischen den Hälften */
+    .flip .bottom, .flip .face.back {
+        border-top: 0.02em solid var(--card-color);
+    }
+    .flip .half span, .flip .face span {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 1.1em;
+        line-height: 1.1em;
+        text-align: center;
+        font-weight: 600;
+    }
+    .flip .bottom span, .flip .face.back span {
+        top: -0.55em;
+    }
+    .flip .leaf {
+        background: none;
+        overflow: visible;
+        transform-origin: 50% 100%;
+        transform-style: preserve-3d;
+        animation: flip-leaf 0.6s ease-in forwards;
+    }
+    .flip .leaf .face {
+        height: 100%;
+        backface-visibility: hidden;
+    }
+    .flip .leaf .face.back {
+        top: 0;
+        transform: rotateX(180deg);
+    }
+    @keyframes flip-leaf {
+        to {
+            transform: rotateX(-180deg);
+        }
+    }
+    .flip .separator {
+        font-weight: 600;
+        width: 0.3em;
+        text-align: center;
+    }
+    .muted.flip {
+        opacity: 0.5;
+    }
+
+    /* Wochentag kurz in der 1x1-Kachel (ca. 151 px), ausgeschrieben ab der nächsten Größe (ca. 309 px) */
+    .compact .day .long {
+        display: none;
+    }
+    @media (min-width: 250px) {
+        .compact .day .short {
+            display: none;
+        }
+        .compact .day .long {
+            display: inline;
+        }
+    }
+    .compact .day {
+        font-size: min(11cqw, 14cqh);
+        line-height: 1.2;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Einstellungsansicht; Schwelle aus den gemessenen Kachelgrößen (Desktop maximiert ca. 627 x 468,
+       Handy maximiert ca. 387 x 811, große Rasterkachel 468 x 468 bleibt kompakt) */
+    .settings {
+        display: none;
+        overflow-y: auto;
+        /* Abstand, damit ein eingeblendeter Scrollbalken keine Bedienelemente überdeckt */
+        padding-right: 12px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--line-color) transparent;
+    }
+    @media (min-width: 500px) and (min-height: 400px), (min-width: 340px) and (min-height: 600px) {
+        .compact {
+            display: none;
+        }
+        .settings {
+            display: block;
+        }
+    }
+    .section {
+        margin-bottom: 16px;
+    }
+    .caption {
+        font-size: 0.85em;
+        opacity: 0.7;
+        margin-bottom: 6px;
+    }
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .next {
+        font-size: 1.1em;
+        font-weight: 600;
+    }
+    .warning {
+        margin-top: 6px;
+    }
+    .warning:empty {
+        display: none;
+    }
+    label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+    input[type="checkbox"] {
+        width: 1.2em;
+        height: 1.2em;
+        margin: 0;
+        accent-color: var(--accent-color);
+    }
+    input[type="time"], input[type="number"] {
+        font: inherit;
+        color: inherit;
+        background: transparent;
+        border: 1px solid var(--line-color);
+        border-radius: 6px;
+        padding: 4px 8px;
+        outline: none;
+    }
+    input[type="time"]:focus, input[type="number"]:focus {
+        border-color: var(--accent-color);
+    }
+    /* Browser-Pfeile passen farblich nicht zum Design; Eingabe per Tastatur */
+    input[type="number"] {
+        appearance: textfield;
+        -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    input[type="time"] {
+        font-size: 1.6em;
+        font-variant-numeric: tabular-nums;
+    }
+    input[type="number"] {
+        width: 5em;
+        text-align: right;
+    }
+    .block {
+        display: flex;
+        align-items: center;
+        gap: 12px 16px;
+        flex-wrap: wrap;
+    }
+    .days {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .days button, .choices button {
+        font: inherit;
+        color: inherit;
+        min-width: 2.8em;
+        padding: 6px 4px;
+        border: 1px solid var(--line-color);
+        border-radius: 6px;
+        background: transparent;
+        opacity: 0.6;
+        cursor: pointer;
+    }
+    .choices {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .choices button {
+        padding: 6px 12px;
+    }
+    .days button.on, .choices button.on {
+        border-color: var(--accent-color);
+        background: color-mix(in srgb, var(--accent-color) 25%, transparent);
+        font-weight: 600;
+        opacity: 1;
+    }
+    .days button:disabled {
+        cursor: default;
+    }
+    .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--soft-line-color);
+    }
+    .row label {
+        flex: 1;
+        min-width: 0;
+    }
+    .row .name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .offset {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        white-space: nowrap;
+    }
+    .start {
+        min-width: 4em;
+        margin-left: 8px;
+        opacity: 0.7;
+        font-variant-numeric: tabular-nums;
+    }
+</style>
+
+<div class="view compact">
+    <!-- icons.js ersetzt <i>-Icons durch SVG; Klick und Farbe deshalb am festen Container, das Icon wird darin neu eingesetzt. -->
+    <div class="icon hidden" id="icon" role="button" title="Switch alarm clock on/off"></div>
+    <div class="time" id="compactTime">--:--</div>
+    <div class="day" id="compactDay"></div>
+</div>
+
+<div class="view settings">
+    <div class="section">
+        <div class="header">
+            <div class="next" id="next"></div>
+            <label>
+                <input type="checkbox" id="active">
+                <span>Alarm clock active</span>
+            </label>
+        </div>
+        <div class="warning" id="warning"></div>
+    </div>
+    <div class="section">
+        <label>
+            <input type="checkbox" id="separate">
+            <span>Separate wake-up time for the weekend (Sat–Sun)</span>
+        </label>
+    </div>
+    <div class="section">
+        <div class="caption" id="weekCaption">Wake-up time</div>
+        <div class="block">
+            <input type="time" id="time" data-ident="SetWakeUpTime">
+            <div class="days" id="days"></div>
+        </div>
+    </div>
+    <div class="section" id="weekendBlock" hidden>
+        <div class="caption">Saturday – Sunday</div>
+        <div class="block">
+            <input type="time" id="timeWeekend" data-ident="SetWakeUpTimeWeekend">
+            <div class="days" id="daysWeekend"></div>
+        </div>
+    </div>
+    <div class="section">
+        <div class="caption">Display of the wake-up time</div>
+        <div class="choices" id="styles"></div>
+    </div>
+    <div class="section muted" id="hint"></div>
+    <div id="groups"></div>
+</div>
+
+<script>
+    // Schlüssel entsprechen den ISO-Wochentagen bzw. Gruppenschlüsseln im Modul; Texte werden über locale.json übersetzt.
+    const WEEKDAYS = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
+    const WEEKDAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' };
+    const GROUPS = { light: 'Lights', shutter: 'Shutters', heating: 'Heating', other: 'Other', script: 'Scripts' };
+    const STATUS = {
+        201: 'The wake-up time is invalid',
+        202: 'No weekday is enabled',
+        203: 'The action selection cannot be read',
+        204: 'The central actions are not available',
+        205: 'The weekdays cannot be read'
+    };
+    const HINTS = {
+        noInstance: 'No central actions are selected in the configuration of the alarm clock.',
+        catalog: 'The central actions are not available. The current selection is kept.',
+        selection: 'The saved action selection cannot be read and will not be overwritten.'
+    };
+
+    // Darstellungen der Weckzeit; Schlüssel wie DISPLAY_STYLES im Modul.
+    const STYLES = { standard: 'Standard', digital: 'Digital', flip: 'Flip cards' };
+
+    // 7-Segment-Ziffer im Raster 56 x 100 mit Strichstärke 10; Segmente a–g wie üblich im Uhrzeigersinn, g in der Mitte.
+    const DIGIT_SEGMENTS = {
+        '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg',
+        '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g'
+    };
+    function horizontalSegment(y, x1, x2) {
+        return [[x1, y], [x1 + 5, y - 5], [x2 - 5, y - 5], [x2, y], [x2 - 5, y + 5], [x1 + 5, y + 5]];
+    }
+    function verticalSegment(x, y1, y2) {
+        return [[x, y1], [x + 5, y1 + 5], [x + 5, y2 - 5], [x, y2], [x - 5, y2 - 5], [x - 5, y1 + 5]];
+    }
+    const SEGMENT_POINTS = {
+        a: horizontalSegment(5, 7, 49),
+        b: verticalSegment(51, 7, 48),
+        c: verticalSegment(51, 52, 93),
+        d: horizontalSegment(95, 7, 49),
+        e: verticalSegment(5, 52, 93),
+        f: verticalSegment(5, 7, 48),
+        g: horizontalSegment(50, 7, 49)
+    };
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    let state = null;
+    let shownStyle = null;
+    let shownText = null;
+    // Eingaben, die gerade bearbeitet werden, nicht durch eintreffende Aktualisierungen überschreiben.
+    let deferred = false;
+
+    function handleMessage(data) {
+        state = JSON.parse(data);
+        render();
+    }
+
+    function send(ident, value) {
+        requestAction(ident, JSON.stringify(value));
+    }
+
+    function isEditing(container) {
+        const element = document.activeElement;
+        return element !== null && element.tagName === 'INPUT' && element.type !== 'checkbox' && container.contains(element);
+    }
+
+    // Kurzform (Mo, Di, ...) oder ausgeschrieben
+    function dayText(next, short) {
+        if (next.days === 0) {
+            return translate('Today');
+        }
+        if (next.days === 1) {
+            return translate('Tomorrow');
+        }
+        return translate((short ? WEEKDAYS : WEEKDAY_NAMES)[next.weekday]);
+    }
+
+    function startText(start) {
+        if (start.days < 0) {
+            return start.time + ' ' + translate('(day before)');
+        }
+        if (start.days > 0) {
+            return start.time + ' ' + translate('(day after)');
+        }
+        return start.time;
+    }
+
+    function statusText() {
+        if (!state.active) {
+            return translate('Off');
+        }
+        return STATUS[state.status] ? translate(STATUS[state.status]) : translate('No next wake-up');
+    }
+
+    function render() {
+        if (state === null) {
+            return;
+        }
+        deferred = false;
+
+        const compactTime = document.getElementById('compactTime');
+        const compactDay = document.getElementById('compactDay');
+        const hasNext = state.active && state.next;
+        renderTime(compactTime, hasNext ? state.next.time : '--:--');
+        compactTime.classList.toggle('muted', !hasNext);
+        renderStyles();
+        if (hasNext) {
+            // Beide Formen; welche sichtbar ist, entscheidet die Kachelbreite (CSS).
+            const shortDay = document.createElement('span');
+            shortDay.className = 'short';
+            shortDay.textContent = dayText(state.next, true);
+            const longDay = document.createElement('span');
+            longDay.className = 'long';
+            longDay.textContent = dayText(state.next, false);
+            compactDay.replaceChildren(shortDay, longDay);
+        } else {
+            // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
+            // Die Zeile bleibt (geschütztes Leerzeichen), damit sich die Anzeige nicht verschiebt.
+            compactDay.textContent = state.active ? statusText() : ' ';
+        }
+        renderIcon();
+
+        document.getElementById('next').textContent = state.active && state.next
+            ? translate('Next wake-up') + ': ' + dayText(state.next, false) + ', ' + state.next.time
+            : (state.active ? translate('No next wake-up') : translate('Alarm clock is inactive'));
+        document.getElementById('warning').textContent = state.active && STATUS[state.status] ? translate(STATUS[state.status]) : '';
+        document.getElementById('active').checked = state.active;
+
+        document.getElementById('separate').checked = state.separate;
+        document.getElementById('weekendBlock').hidden = !state.separate;
+        document.getElementById('weekCaption').textContent = translate(state.separate ? 'Monday – Friday' : 'Wake-up time');
+        for (const [id, value] of [['time', state.time], ['timeWeekend', state.weekend]]) {
+            const input = document.getElementById(id);
+            if (document.activeElement === input) {
+                deferred = true;
+            } else {
+                input.value = value || '';
+            }
+        }
+
+        renderDays();
+
+        const groups = document.getElementById('groups');
+        if (isEditing(groups)) {
+            deferred = true;
+        } else {
+            renderGroups(groups);
+        }
+        document.getElementById('hint').textContent = state.hint ? translate(HINTS[state.hint])
+            : (state.groups.length === 0 ? translate('No central actions available.') : '');
+    }
+
+    // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
+    // Zeichnet die Zeit ("HH:MM" oder "--:--") nur bei Änderung neu; Klappzahlen klappen nur bei Änderung um.
+    function renderTime(element, text) {
+        const style = STYLES[state.style] ? state.style : 'standard';
+        if (style === shownStyle && text === shownText) {
+            return;
+        }
+        const previous = style === shownStyle ? shownText : null;
+        shownStyle = style;
+        shownText = text;
+        element.className = 'time ' + style;
+        if (style === 'digital') {
+            element.replaceChildren(digitalTime(text));
+        } else if (style === 'flip') {
+            renderFlip(element, text, previous);
+        } else {
+            element.textContent = text;
+        }
+    }
+
+    function digitalTime(text) {
+        const svg = document.createElementNS(SVG_NS, 'svg');
+        svg.setAttribute('viewBox', '-12 0 286 100');
+        const group = document.createElementNS(SVG_NS, 'g');
+        // Leichte Neigung wie bei üblichen Segmentanzeigen
+        group.setAttribute('transform', 'skewX(-6)');
+        let x = 0;
+        for (const char of text) {
+            if (char === ':') {
+                for (const y of [32, 68]) {
+                    const dot = document.createElementNS(SVG_NS, 'circle');
+                    dot.setAttribute('class', 'colon');
+                    dot.setAttribute('cx', String(x + 12));
+                    dot.setAttribute('cy', String(y));
+                    dot.setAttribute('r', '6');
+                    group.appendChild(dot);
+                }
+                x += 24;
+                continue;
+            }
+            const active = DIGIT_SEGMENTS[char] || '';
+            for (const segment in SEGMENT_POINTS) {
+                const polygon = document.createElementNS(SVG_NS, 'polygon');
+                polygon.setAttribute('class', active.includes(segment) ? 'seg on' : 'seg');
+                polygon.setAttribute('points', SEGMENT_POINTS[segment].map(p => (p[0] + x) + ',' + p[1]).join(' '));
+                group.appendChild(polygon);
+            }
+            x += 64;
+        }
+        svg.appendChild(group);
+        return svg;
+    }
+
+    function flipHalf(className, char) {
+        const half = document.createElement('div');
+        half.className = className;
+        const span = document.createElement('span');
+        span.textContent = char;
+        half.appendChild(span);
+        return half;
+    }
+
+    function renderFlip(element, text, previous) {
+        const animate = previous !== null && element.children.length === text.length
+            && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!animate) {
+            element.replaceChildren();
+            for (const char of text) {
+                if (char === ':') {
+                    const separator = document.createElement('span');
+                    separator.className = 'separator';
+                    separator.textContent = ':';
+                    element.appendChild(separator);
+                } else {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.append(flipHalf('half top', char), flipHalf('half bottom', char));
+                    element.appendChild(card);
+                }
+            }
+            return;
+        }
+        Array.from(text).forEach(function (char, index) {
+            if (char !== ':' && char !== previous[index]) {
+                flipCard(element.children[index], previous[index], char);
+            }
+        });
+    }
+
+    // Oben steht sofort die neue, unten noch die alte Ziffer; das Blatt (vorn alt oben, hinten neu unten) klappt nach unten.
+    function flipCard(card, from, to) {
+        const running = card.querySelector('.leaf');
+        if (running) {
+            running.remove();
+        }
+        card.querySelector('.top span').textContent = to;
+        card.querySelector('.bottom span').textContent = from;
+        const leaf = document.createElement('div');
+        leaf.className = 'leaf';
+        leaf.append(flipHalf('face front', from), flipHalf('face back', to));
+        leaf.addEventListener('animationend', function () {
+            card.querySelector('.bottom span').textContent = to;
+            leaf.remove();
+        });
+        card.appendChild(leaf);
+    }
+
+    function renderStyles() {
+        const container = document.getElementById('styles');
+        if (container.children.length === 0) {
+            for (const key in STYLES) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.dataset.style = key;
+                button.textContent = translate(STYLES[key]);
+                button.addEventListener('click', function () {
+                    requestAction('SetDisplayStyle', key);
+                });
+                container.appendChild(button);
+            }
+        }
+        const current = STYLES[state.style] ? state.style : 'standard';
+        for (const button of container.children) {
+            button.classList.toggle('on', button.dataset.style === current);
+        }
+    }
+
+    let iconName = null;
+
+    function renderIcon() {
+        const container = document.getElementById('icon');
+        const name = typeof state.icon === 'string' && /^[a-z0-9-]+$/.test(state.icon) ? state.icon : '';
+        container.classList.toggle('hidden', name === '');
+        container.classList.toggle('off', !state.active);
+        if (name !== iconName) {
+            iconName = name;
+            container.replaceChildren();
+            if (name !== '') {
+                const icon = document.createElement('i');
+                icon.className = 'fa-light fa-' + name;
+                container.appendChild(icon);
+            }
+        }
+    }
+
+    const dayButtons = {};
+
+    // Bei getrenntem Wochenende stehen Sa/So im eigenen Block.
+    function renderDays() {
+        const days = document.getElementById('days');
+        const weekend = document.getElementById('daysWeekend');
+        for (const day in WEEKDAYS) {
+            if (!dayButtons[day]) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = translate(WEEKDAYS[day]);
+                button.addEventListener('click', function () {
+                    send('SetWeekday', { Day: Number(day), Active: !button.classList.contains('on') });
+                });
+                dayButtons[day] = button;
+            }
+            const button = dayButtons[day];
+            (state.separate && Number(day) >= 6 ? weekend : days).appendChild(button);
+            button.disabled = state.weekdays === null;
+            button.classList.toggle('on', state.weekdays !== null && state.weekdays.includes(Number(day)));
+        }
+    }
+
+    function renderGroups(container) {
+        container.replaceChildren();
+        for (const group of state.groups) {
+            const section = document.createElement('div');
+            section.className = 'section';
+            const caption = document.createElement('div');
+            caption.className = 'caption';
+            caption.textContent = translate(GROUPS[group.key] || group.key);
+            section.appendChild(caption);
+            for (const action of group.actions) {
+                section.appendChild(renderAction(action));
+            }
+            container.appendChild(section);
+        }
+    }
+
+    function renderAction(action) {
+        const row = document.createElement('div');
+        row.className = 'row';
+
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = action.active;
+        checkbox.addEventListener('change', function () {
+            send('SetAction', { ID: action.id, Active: checkbox.checked });
+        });
+        const name = document.createElement('span');
+        name.className = 'name';
+        name.textContent = action.name;
+        label.append(checkbox, name);
+        row.appendChild(label);
+
+        if ('offset' in action) {
+            const offset = document.createElement('div');
+            offset.className = 'offset';
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '1';
+            input.min = String(-state.maxOffset);
+            input.max = String(state.maxOffset);
+            input.value = String(action.offset);
+            input.title = translate('Offset in minutes: negative = before the wake-up time, positive = after');
+            input.addEventListener('change', function () {
+                const value = Number(input.value);
+                if (input.value === '' || !Number.isInteger(value) || Math.abs(value) > state.maxOffset) {
+                    input.value = String(action.offset);
+                    return;
+                }
+                send('SetAction', { ID: action.id, Offset: value });
+            });
+            const unit = document.createElement('span');
+            unit.textContent = translate('min');
+            offset.append(input, unit);
+            if (action.start) {
+                const start = document.createElement('span');
+                start.className = 'start';
+                // Nicht ausgeführte Aktionen haben keine Startzeit.
+                start.textContent = '→ ' + (action.active ? startText(action.start) : '--:--');
+                start.title = translate('Start time');
+                offset.appendChild(start);
+            }
+            row.appendChild(offset);
+        }
+        return row;
+    }
+
+    document.getElementById('icon').addEventListener('click', function () {
+        if (state !== null) {
+            send('SetActive', !state.active);
+        }
+    });
+
+    document.getElementById('active').addEventListener('change', function (event) {
+        send('SetActive', event.target.checked);
+    });
+
+    document.getElementById('separate').addEventListener('change', function (event) {
+        send('SetSeparateWeekend', event.target.checked);
+    });
+
+    for (const id of ['time', 'timeWeekend']) {
+        document.getElementById(id).addEventListener('change', function (event) {
+            const value = event.target.value;
+            if (/^\d{2}:\d{2}/.test(value)) {
+                requestAction(event.target.dataset.ident, value.substring(0, 5));
+            }
+        });
+    }
+
+    // Nach Ende einer Eingabe die zwischenzeitlich eingetroffenen Aktualisierungen anzeigen.
+    document.addEventListener('focusout', function () {
+        setTimeout(function () {
+            if (deferred) {
+                render();
+            }
+        }, 0);
+    });
+</script>

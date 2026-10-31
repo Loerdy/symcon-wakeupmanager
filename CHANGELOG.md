@@ -1,0 +1,27 @@
+# Changelog
+
+Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei dokumentiert.
+
+Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), die Versionierung folgt [Semantic Versioning](https://semver.org/lang/de/).
+
+## [Unreleased]
+
+## [1.0.0] - 2026-10-31
+
+Erstes Release (Beta).
+
+### Hinzugefügt
+
+- Library `WakeUpManager` mit den Modulen `WakeUpManager` (Wecker) und `WakeUpActions` (zentrale Aktionen), Präfix `WUM`, Mindestversion IP-Symcon 9.1.
+- Englische Grundtexte mit vollständiger deutscher Übersetzung für beide Module und die Kachel.
+- **WakeUpActions:** zentrale Aktionen in festen Gruppen (Lampen, Rollläden, Heizung, Sonstiges, Skripte) mit frei wählbarer IP-Symcon-Aktion und automatisch vergebener, fester ID.
+- **WakeUpManager:** globaler Aktiv-Schalter, Weckzeit, aktive Wochentage und optional eigene Weckzeit für das Wochenende (Sa–So).
+- Auswahl der zentralen Aktionen pro Wecker; Heizungsaktionen mit Zeitversatz in Minuten relativ zur Weckzeit, alle anderen Aktionen zur Weckzeit.
+- Einstellungen werden nach Prüfung sofort gespeichert (Konsole, Kachel und `IPS_RequestAction`), ohne Selbstkonfiguration der Instanz.
+- Ein einzelner Timer auf den nächsten fälligen Zeitpunkt; Neuberechnung nach Konfigurationsänderung, IP-Symcon-Start, Änderung der zentralen Aktionen und jedem Auslösen. Zeitberechnung in der lokalen Zeitzone inklusive Sommer-/Winterzeit und Vorlauf über Mitternacht.
+- Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt; verpasste Zeitpunkte werden nur innerhalb von 5 Minuten nachgeholt. Der Fehler einer Aktion verhindert die übrigen nicht.
+- Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
+- Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
+
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/Loerdy/symcon-wakeupmanager/releases/tag/v1.0.0

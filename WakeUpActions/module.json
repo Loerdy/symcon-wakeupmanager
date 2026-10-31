@@ -1,0 +1,12 @@
+{
+    "id": "{4E963960-1F66-A246-3BC9-BA42E525A6F7}",
+    "name": "WakeUpActions",
+    "type": 3,
+    "vendor": "WakeUpManager",
+    "aliases": [],
+    "url": "https://github.com/Loerdy/symcon-wakeupmanager",
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "WUM"
+}
