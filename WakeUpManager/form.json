@@ -4,42 +4,120 @@
             "type": "SelectInstance",
             "name": "ActionInstance",
             "caption": "Central actions (WakeUpActions)",
-            "validModules": ["{4E963960-1F66-A246-3BC9-BA42E525A6F7}"]
+            "validModules": [
+                "{4E963960-1F66-A246-3BC9-BA42E525A6F7}"
+            ]
         },
-        { "type": "SelectIcon", "name": "Icon", "caption": "Tile icon (tap in the tile switches the alarm clock on/off)" }
+        {
+            "type": "SelectIcon",
+            "name": "Icon",
+            "caption": "Tile icon (tap in the tile switches the alarm clock on/off)"
+        }
     ],
     "actions": [
-        { "type": "Label", "caption": "Settings of the alarm clock. Changes are saved immediately, also when made in the tile." },
-        { "type": "CheckBox", "name": "Active", "caption": "Alarm clock active", "onChange": "IPS_RequestAction($id, 'SetActive', $Active);" },
+        {
+            "type": "Label",
+            "caption": "Settings of the alarm clock. Changes are saved immediately, also when made in the tile."
+        },
+        {
+            "type": "CheckBox",
+            "name": "Active",
+            "caption": "Alarm clock active",
+            "onChange": "IPS_RequestAction($id, 'SetActive', $Active);"
+        },
         {
             "type": "RowLayout",
             "items": [
-                { "type": "SelectTime", "name": "WakeUpTime", "caption": "Wake-up time" },
-                { "type": "Button", "caption": "Save wake-up time", "onClick": "IPS_RequestAction($id, 'SetWakeUpTime', $WakeUpTime);" }
+                {
+                    "type": "SelectTime",
+                    "name": "WakeUpTime",
+                    "caption": "Wake-up time"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Save wake-up time",
+                    "onClick": "IPS_RequestAction($id, 'SetWakeUpTime', $WakeUpTime);"
+                }
             ]
         },
-        { "type": "CheckBox", "name": "SeparateWeekend", "caption": "Separate wake-up time for the weekend (Sat–Sun)", "onChange": "IPS_RequestAction($id, 'SetSeparateWeekend', $SeparateWeekend);" },
+        {
+            "type": "CheckBox",
+            "name": "SeparateWeekend",
+            "caption": "Separate wake-up time for the weekend (Sat–Sun)",
+            "onChange": "IPS_RequestAction($id, 'SetSeparateWeekend', $SeparateWeekend);"
+        },
         {
             "type": "RowLayout",
             "items": [
-                { "type": "SelectTime", "name": "WakeUpTimeWeekend", "caption": "Wake-up time weekend" },
-                { "type": "Button", "caption": "Save weekend wake-up time", "onClick": "IPS_RequestAction($id, 'SetWakeUpTimeWeekend', $WakeUpTimeWeekend);" }
+                {
+                    "type": "SelectTime",
+                    "name": "WakeUpTimeWeekend",
+                    "caption": "Wake-up time weekend"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Save weekend wake-up time",
+                    "onClick": "IPS_RequestAction($id, 'SetWakeUpTimeWeekend', $WakeUpTimeWeekend);"
+                }
             ]
         },
-        { "type": "Label", "caption": "Active weekdays" },
+        {
+            "type": "Label",
+            "caption": "Active weekdays"
+        },
         {
             "type": "RowLayout",
             "items": [
-                { "type": "CheckBox", "name": "Monday", "caption": "Mon", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 1, 'Active' => $Monday]));" },
-                { "type": "CheckBox", "name": "Tuesday", "caption": "Tue", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 2, 'Active' => $Tuesday]));" },
-                { "type": "CheckBox", "name": "Wednesday", "caption": "Wed", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 3, 'Active' => $Wednesday]));" },
-                { "type": "CheckBox", "name": "Thursday", "caption": "Thu", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 4, 'Active' => $Thursday]));" },
-                { "type": "CheckBox", "name": "Friday", "caption": "Fri", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 5, 'Active' => $Friday]));" },
-                { "type": "CheckBox", "name": "Saturday", "caption": "Sat", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 6, 'Active' => $Saturday]));" },
-                { "type": "CheckBox", "name": "Sunday", "caption": "Sun", "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 7, 'Active' => $Sunday]));" }
+                {
+                    "type": "CheckBox",
+                    "name": "Monday",
+                    "caption": "Mon",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 1, 'Active' => $Monday]));"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Tuesday",
+                    "caption": "Tue",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 2, 'Active' => $Tuesday]));"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Wednesday",
+                    "caption": "Wed",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 3, 'Active' => $Wednesday]));"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Thursday",
+                    "caption": "Thu",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 4, 'Active' => $Thursday]));"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Friday",
+                    "caption": "Fri",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 5, 'Active' => $Friday]));"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Saturday",
+                    "caption": "Sat",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 6, 'Active' => $Saturday]));"
+                },
+                {
+                    "type": "CheckBox",
+                    "name": "Sunday",
+                    "caption": "Sun",
+                    "onChange": "IPS_RequestAction($id, 'SetWeekday', json_encode(['Day' => 7, 'Active' => $Sunday]));"
+                }
             ]
         },
-        { "type": "Label", "name": "ActionsHint", "caption": "", "visible": false },
+        {
+            "type": "Label",
+            "name": "ActionsHint",
+            "caption": "",
+            "visible": false
+        },
         {
             "type": "List",
             "name": "ActionsLight",
@@ -48,9 +126,23 @@
             "add": false,
             "delete": true,
             "columns": [
-                { "caption": "Action", "name": "Name", "width": "auto" },
-                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
-                { "name": "ID", "visible": false }
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false
+                }
             ],
             "values": [],
             "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsLight));",
@@ -64,9 +156,23 @@
             "add": false,
             "delete": true,
             "columns": [
-                { "caption": "Action", "name": "Name", "width": "auto" },
-                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
-                { "name": "ID", "visible": false }
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false
+                }
             ],
             "values": [],
             "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsShutter));",
@@ -80,16 +186,35 @@
             "add": false,
             "delete": true,
             "columns": [
-                { "caption": "Action", "name": "Name", "width": "auto" },
-                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
                 {
                     "caption": "Offset",
                     "name": "Offset",
                     "width": "160px",
                     "align": "right",
-                    "edit": { "type": "NumberSpinner", "suffix": " min", "minimum": -1440, "maximum": 1440 }
+                    "edit": {
+                        "type": "NumberSpinner",
+                        "suffix": " min",
+                        "minimum": -1440,
+                        "maximum": 1440
+                    }
                 },
-                { "name": "ID", "visible": false }
+                {
+                    "name": "ID",
+                    "visible": false
+                }
             ],
             "values": [],
             "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsHeating));",
@@ -103,9 +228,23 @@
             "add": false,
             "delete": true,
             "columns": [
-                { "caption": "Action", "name": "Name", "width": "auto" },
-                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
-                { "name": "ID", "visible": false }
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false
+                }
             ],
             "values": [],
             "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsOther));",
@@ -119,9 +258,23 @@
             "add": false,
             "delete": true,
             "columns": [
-                { "caption": "Action", "name": "Name", "width": "auto" },
-                { "caption": "Execute", "name": "Active", "width": "110px", "edit": { "type": "CheckBox" } },
-                { "name": "ID", "visible": false }
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false
+                }
             ],
             "values": [],
             "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsScript));",
@@ -129,12 +282,40 @@
         }
     ],
     "status": [
-        { "code": 102, "icon": "active", "caption": "Alarm clock is active" },
-        { "code": 104, "icon": "inactive", "caption": "Alarm clock is inactive" },
-        { "code": 201, "icon": "error", "caption": "The wake-up time is invalid" },
-        { "code": 202, "icon": "error", "caption": "No weekday is enabled" },
-        { "code": 203, "icon": "error", "caption": "The action selection cannot be read" },
-        { "code": 204, "icon": "error", "caption": "The central actions are not available" },
-        { "code": 205, "icon": "error", "caption": "The weekdays cannot be read" }
+        {
+            "code": 102,
+            "icon": "active",
+            "caption": "Alarm clock is active"
+        },
+        {
+            "code": 104,
+            "icon": "inactive",
+            "caption": "Alarm clock is inactive"
+        },
+        {
+            "code": 201,
+            "icon": "error",
+            "caption": "The wake-up time is invalid"
+        },
+        {
+            "code": 202,
+            "icon": "error",
+            "caption": "No weekday is enabled"
+        },
+        {
+            "code": 203,
+            "icon": "error",
+            "caption": "The action selection cannot be read"
+        },
+        {
+            "code": 204,
+            "icon": "error",
+            "caption": "The central actions are not available"
+        },
+        {
+            "code": 205,
+            "icon": "error",
+            "caption": "The weekdays cannot be read"
+        }
     ]
 }
