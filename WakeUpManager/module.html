@@ -162,6 +162,18 @@
         opacity: 0.5;
     }
 
+    /* Wochentag kurz in der 1x1-Kachel (ca. 151 px), ausgeschrieben ab der nächsten Größe (ca. 309 px) */
+    .compact .day .long {
+        display: none;
+    }
+    @media (min-width: 250px) {
+        .compact .day .short {
+            display: none;
+        }
+        .compact .day .long {
+            display: inline;
+        }
+    }
     .compact .day {
         font-size: min(10vw, 11vh);
         max-width: 100%;
@@ -433,7 +445,7 @@
         return element !== null && element.tagName === 'INPUT' && element.type !== 'checkbox' && container.contains(element);
     }
 
-    // Kleine Kachel: Kurzform (Mo, Di, ...), Einstellungsansicht: ausgeschrieben.
+    // Kurzform (Mo, Di, ...) oder ausgeschrieben
     function dayText(next, short) {
         if (next.days === 0) {
             return translate('Today');
@@ -474,7 +486,14 @@
         compactTime.classList.toggle('muted', !hasNext);
         renderStyles();
         if (hasNext) {
-            compactDay.textContent = dayText(state.next, true);
+            // Beide Formen; welche sichtbar ist, entscheidet die Kachelbreite (CSS).
+            const shortDay = document.createElement('span');
+            shortDay.className = 'short';
+            shortDay.textContent = dayText(state.next, true);
+            const longDay = document.createElement('span');
+            longDay.className = 'long';
+            longDay.textContent = dayText(state.next, false);
+            compactDay.replaceChildren(shortDay, longDay);
         } else {
             // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
             // Die Zeile bleibt (geschütztes Leerzeichen), damit sich die Anzeige nicht verschiebt.
