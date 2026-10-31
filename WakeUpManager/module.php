@@ -505,15 +505,21 @@ class WakeUpManager extends IPSModuleStrict
         $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
         $weekdays = $this->LoadWeekdays();
 
+        // Tage und Uhrzeiten in der Zeitzone von IP-Symcon, nicht in der des Browsers.
+        $timezone = new DateTimeZone(date_default_timezone_get());
         $next = null;
+        // Bezugspunkt für die Startzeiten der Heizung: nächster Weckzeitpunkt, sonst die Weckzeit am heutigen Tag.
+        $reference = null;
+        if ($time !== null) {
+            $reference = (new DateTimeImmutable('now', $timezone))->setTime($time['hour'], $time['minute'], $time['second'])->getTimestamp();
+        }
         if ($active && $time !== null && $weekdays !== null && in_array($status, [IS_ACTIVE, self::STATUS_CATALOG_UNAVAILABLE], true)) {
             $now = time();
             $config = ['hour' => $time['hour'], 'minute' => $time['minute'], 'second' => $time['second'], 'weekdays' => $weekdays];
             $occurrences = $this->GetOccurrences($config, $now + 1, $now + 8 * 86400);
             if (count($occurrences) > 0) {
-                // Tag und Uhrzeit in der Zeitzone von IP-Symcon, nicht in der des Browsers.
-                $timezone = new DateTimeZone(date_default_timezone_get());
-                $date = (new DateTimeImmutable('@' . min($occurrences)))->setTimezone($timezone);
+                $reference = min($occurrences);
+                $date = (new DateTimeImmutable('@' . $reference))->setTimezone($timezone);
                 $today = (new DateTimeImmutable('now', $timezone))->setTime(0, 0);
                 $next = [
                     'time'    => $date->format('H:i'),
@@ -545,6 +551,13 @@ class WakeUpManager extends IPSModuleStrict
                     $row = ['id' => (string) $id, 'name' => $action['name'], 'active' => $selection[$id]['Active'] ?? false];
                     if ($group === self::OFFSET_GROUP) {
                         $row['offset'] = $selection[$id]['Offset'] ?? 0;
+                        if ($reference !== null) {
+                            // Der Zeitversatz ist eine echte Zeitspanne (wie bei der Ausführung); days = Tagesversatz zur Weckzeit.
+                            $start = (new DateTimeImmutable('@' . ($reference + $row['offset'] * 60)))->setTimezone($timezone);
+                            $wakeDay = (new DateTimeImmutable('@' . $reference))->setTimezone($timezone)->setTime(0, 0);
+                            $interval = $wakeDay->diff($start->setTime(0, 0));
+                            $row['start'] = ['time' => $start->format('H:i'), 'days' => $interval->invert === 1 ? -$interval->days : $interval->days];
+                        }
                     }
                     $actions[] = $row;
                 }

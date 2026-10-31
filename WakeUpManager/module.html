@@ -48,6 +48,10 @@
     }
     .compact .day {
         font-size: min(11vw, 12vh);
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     /* Einstellungsansicht; Schwelle aus den gemessenen Kachelgrößen (Desktop maximiert ca. 627 x 468,
@@ -55,6 +59,10 @@
     .settings {
         display: none;
         overflow-y: auto;
+        /* Abstand, damit ein eingeblendeter Scrollbalken keine Bedienelemente überdeckt */
+        padding-right: 12px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--line-color) transparent;
     }
     @media (min-width: 500px) and (min-height: 400px), (min-width: 340px) and (min-height: 600px) {
         .compact {
@@ -178,6 +186,12 @@
         gap: 4px;
         white-space: nowrap;
     }
+    .start {
+        min-width: 4em;
+        margin-left: 8px;
+        opacity: 0.7;
+        font-variant-numeric: tabular-nums;
+    }
 </style>
 
 <div class="view compact">
@@ -212,6 +226,7 @@
 <script>
     // Schlüssel entsprechen den ISO-Wochentagen bzw. Gruppenschlüsseln im Modul; Texte werden über locale.json übersetzt.
     const WEEKDAYS = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
+    const WEEKDAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' };
     const GROUPS = { light: 'Lights', shutter: 'Shutters', heating: 'Heating', other: 'Other', script: 'Scripts' };
     const STATUS = {
         201: 'The wake-up time is invalid',
@@ -251,7 +266,17 @@
         if (next.days === 1) {
             return translate('Tomorrow');
         }
-        return translate(WEEKDAYS[next.weekday]);
+        return translate(WEEKDAY_NAMES[next.weekday]);
+    }
+
+    function startText(start) {
+        if (start.days < 0) {
+            return start.time + ' ' + translate('(day before)');
+        }
+        if (start.days > 0) {
+            return start.time + ' ' + translate('(day after)');
+        }
+        return start.time;
     }
 
     function statusText() {
@@ -378,6 +403,13 @@
             const unit = document.createElement('span');
             unit.textContent = translate('min');
             offset.append(input, unit);
+            if (action.start) {
+                const start = document.createElement('span');
+                start.className = 'start';
+                start.textContent = '→ ' + startText(action.start);
+                start.title = translate('Start time');
+                offset.appendChild(start);
+            }
             row.appendChild(offset);
         }
         return row;

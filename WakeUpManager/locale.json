@@ -52,7 +52,17 @@
             "No central actions are selected in the configuration of the alarm clock.": "In der Konfiguration des Weckers sind keine zentralen Aktionen ausgewählt.",
             "No central actions available.": "Keine zentralen Aktionen vorhanden.",
             "Offset in minutes: negative = before the wake-up time, positive = after": "Zeitversatz in Minuten: negativ = vor der Weckzeit, positiv = danach",
-            "min": "min"
+            "min": "min",
+            "Monday": "Montag",
+            "Tuesday": "Dienstag",
+            "Wednesday": "Mittwoch",
+            "Thursday": "Donnerstag",
+            "Friday": "Freitag",
+            "Saturday": "Samstag",
+            "Sunday": "Sonntag",
+            "(day before)": "(Vortag)",
+            "(day after)": "(Folgetag)",
+            "Start time": "Startzeit"
         }
     }
 }
