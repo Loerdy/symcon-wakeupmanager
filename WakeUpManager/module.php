@@ -25,6 +25,9 @@ class WakeUpManager extends IPSModuleStrict
         7 => 'Sunday'
     ];
 
+    // Darstellungen der Weckzeit in der kleinen Kachel; Schlüssel werden gespeichert und nicht übersetzt.
+    private const DISPLAY_STYLES = ['standard', 'digital', 'flip'];
+
     // Tage mit eigener Weckzeit, wenn das Wochenende getrennt eingestellt ist.
     private const WEEKEND = [6, 7];
 
@@ -66,6 +69,8 @@ class WakeUpManager extends IPSModuleStrict
         $this->RegisterAttributeString('Weekdays', '[1,2,3,4,5]');
         // Auswahl aus den zentralen Aktionen: [{"ID": "<ID der zentralen Aktion>", "Active": bool, "Offset": Minuten}, ...]
         $this->RegisterAttributeString('Selection', '[]');
+        // Vom Benutzer in der Kachel gewählte Darstellung der Weckzeit
+        $this->RegisterAttributeString('DisplayStyle', 'standard');
 
         // Ende des zuletzt abgearbeiteten Zeitfensters (Unix-Zeitstempel); -1 = Wecker war deaktiviert, nichts nachholen.
         $this->RegisterAttributeInteger('LastProcessed', -1);
@@ -274,6 +279,16 @@ class WakeUpManager extends IPSModuleStrict
                     }
                     $this->WriteAttributeBoolean('SeparateWeekend', $separate);
                 });
+                break;
+            case 'SetDisplayStyle':
+                if (!in_array($Value, self::DISPLAY_STYLES, true)) {
+                    $this->RejectValue($Ident);
+                }
+                // Reine Darstellung: keine Neuberechnung des Weckers nötig.
+                if ($this->ReadAttributeString('DisplayStyle') !== $Value) {
+                    $this->WriteAttributeString('DisplayStyle', $Value);
+                }
+                $this->UpdateTile();
                 break;
             case 'SetWakeUpTimeWeekend':
                 $time = $this->ParseTime($Value);
@@ -633,6 +648,7 @@ class WakeUpManager extends IPSModuleStrict
         return (string) json_encode([
             'active'    => $active,
             'icon'      => $this->ReadPropertyString('Icon'),
+            'style'     => $this->ReadAttributeString('DisplayStyle'),
             'status'    => $status,
             'time'      => $time === null ? null : sprintf('%02d:%02d', $time['hour'], $time['minute']),
             'separate'  => $this->ReadAttributeBoolean('SeparateWeekend'),

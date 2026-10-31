@@ -69,7 +69,11 @@
             "Wake-up time weekend": "Weckzeit Wochenende",
             "Save weekend wake-up time": "Weckzeit Wochenende speichern",
             "Monday – Friday": "Montag – Freitag",
-            "Saturday – Sunday": "Samstag – Sonntag"
+            "Saturday – Sunday": "Samstag – Sonntag",
+            "Display of the wake-up time": "Darstellung der Weckzeit",
+            "Standard": "Standard",
+            "Digital": "Digital",
+            "Flip cards": "Klappzahlen"
         }
     }
 }

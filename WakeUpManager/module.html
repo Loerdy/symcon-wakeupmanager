@@ -55,6 +55,102 @@
         line-height: 1.1;
         font-variant-numeric: tabular-nums;
     }
+    /* Digital: selbst gezeichnete 7-Segment-Ziffern (SVG) */
+    .compact .time.digital {
+        line-height: 0;
+    }
+    .digital svg {
+        width: min(82vw, 115vh);
+        height: auto;
+        margin: 0.08em 0;
+    }
+    .digital .seg {
+        fill: currentColor;
+        opacity: 0.08;
+    }
+    .digital .seg.on, .digital .colon {
+        fill: var(--accent-color);
+        opacity: 1;
+    }
+    .muted.digital .seg.on, .muted.digital .colon {
+        fill: currentColor;
+    }
+
+    /* Klappzahlen: je Ziffer eine Karte aus oberer und unterer Hälfte, beim Wechsel klappt ein Blatt um */
+    .compact .time.flip {
+        display: flex;
+        align-items: center;
+        gap: 0.05em;
+        font-size: min(20vw, 26vh);
+        line-height: 1;
+    }
+    .flip .card {
+        position: relative;
+        width: 0.72em;
+        height: 1.1em;
+        perspective: 3em;
+    }
+    .flip .half, .flip .leaf, .flip .face {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 50%;
+        overflow: hidden;
+        background: color-mix(in srgb, var(--content-color) 12%, var(--card-color));
+    }
+    .flip .top, .flip .leaf, .flip .face.front {
+        top: 0;
+        border-radius: 0.08em 0.08em 0 0;
+    }
+    .flip .bottom, .flip .face.back {
+        top: 50%;
+        border-radius: 0 0 0.08em 0.08em;
+    }
+    /* Trennfuge zwischen den Hälften */
+    .flip .bottom, .flip .face.back {
+        border-top: 0.02em solid var(--card-color);
+    }
+    .flip .half span, .flip .face span {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        height: 1.1em;
+        line-height: 1.1em;
+        text-align: center;
+        font-weight: 600;
+    }
+    .flip .bottom span, .flip .face.back span {
+        top: -0.55em;
+    }
+    .flip .leaf {
+        background: none;
+        overflow: visible;
+        transform-origin: 50% 100%;
+        transform-style: preserve-3d;
+        animation: flip-leaf 0.6s ease-in forwards;
+    }
+    .flip .leaf .face {
+        height: 100%;
+        backface-visibility: hidden;
+    }
+    .flip .leaf .face.back {
+        top: 0;
+        transform: rotateX(180deg);
+    }
+    @keyframes flip-leaf {
+        to {
+            transform: rotateX(-180deg);
+        }
+    }
+    .flip .separator {
+        font-weight: 600;
+        width: 0.3em;
+        text-align: center;
+    }
+    .muted.flip {
+        opacity: 0.5;
+    }
+
     .compact .day {
         font-size: min(11vw, 12vh);
         max-width: 100%;
@@ -158,7 +254,7 @@
         gap: 6px;
         flex-wrap: wrap;
     }
-    .days button {
+    .days button, .choices button {
         font: inherit;
         color: inherit;
         min-width: 2.8em;
@@ -169,7 +265,15 @@
         opacity: 0.6;
         cursor: pointer;
     }
-    .days button.on {
+    .choices {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    .choices button {
+        padding: 6px 12px;
+    }
+    .days button.on, .choices button.on {
         border-color: var(--accent-color);
         background: color-mix(in srgb, var(--accent-color) 25%, transparent);
         font-weight: 600;
@@ -247,6 +351,10 @@
             <div class="days" id="daysWeekend"></div>
         </div>
     </div>
+    <div class="section">
+        <div class="caption">Display of the wake-up time</div>
+        <div class="choices" id="styles"></div>
+    </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
 </div>
@@ -269,7 +377,34 @@
         selection: 'The saved action selection cannot be read and will not be overwritten.'
     };
 
+    // Darstellungen der Weckzeit; Schlüssel wie DISPLAY_STYLES im Modul.
+    const STYLES = { standard: 'Standard', digital: 'Digital', flip: 'Flip cards' };
+
+    // 7-Segment-Ziffer im Raster 56 x 100 mit Strichstärke 10; Segmente a–g wie üblich im Uhrzeigersinn, g in der Mitte.
+    const DIGIT_SEGMENTS = {
+        '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg',
+        '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g'
+    };
+    function horizontalSegment(y, x1, x2) {
+        return [[x1, y], [x1 + 5, y - 5], [x2 - 5, y - 5], [x2, y], [x2 - 5, y + 5], [x1 + 5, y + 5]];
+    }
+    function verticalSegment(x, y1, y2) {
+        return [[x, y1], [x + 5, y1 + 5], [x + 5, y2 - 5], [x, y2], [x - 5, y2 - 5], [x - 5, y1 + 5]];
+    }
+    const SEGMENT_POINTS = {
+        a: horizontalSegment(5, 7, 49),
+        b: verticalSegment(51, 7, 48),
+        c: verticalSegment(51, 52, 93),
+        d: horizontalSegment(95, 7, 49),
+        e: verticalSegment(5, 52, 93),
+        f: verticalSegment(5, 7, 48),
+        g: horizontalSegment(50, 7, 49)
+    };
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
     let state = null;
+    let shownStyle = null;
+    let shownText = null;
     // Eingaben, die gerade bearbeitet werden, nicht durch eintreffende Aktualisierungen überschreiben.
     let deferred = false;
 
@@ -322,13 +457,13 @@
 
         const compactTime = document.getElementById('compactTime');
         const compactDay = document.getElementById('compactDay');
-        if (state.active && state.next) {
-            compactTime.textContent = state.next.time;
-            compactTime.classList.remove('muted');
+        const hasNext = state.active && state.next;
+        renderTime(compactTime, hasNext ? state.next.time : '--:--');
+        compactTime.classList.toggle('muted', !hasNext);
+        renderStyles();
+        if (hasNext) {
             compactDay.textContent = dayText(state.next);
         } else {
-            compactTime.textContent = '--:--';
-            compactTime.classList.add('muted');
             // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
             // Die Zeile bleibt (geschütztes Leerzeichen), damit sich die Anzeige nicht verschiebt.
             compactDay.textContent = state.active ? statusText() : ' ';
@@ -366,6 +501,132 @@
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
+    // Zeichnet die Zeit ("HH:MM" oder "--:--") nur bei Änderung neu; Klappzahlen klappen nur bei Änderung um.
+    function renderTime(element, text) {
+        const style = STYLES[state.style] ? state.style : 'standard';
+        if (style === shownStyle && text === shownText) {
+            return;
+        }
+        const previous = style === shownStyle ? shownText : null;
+        shownStyle = style;
+        shownText = text;
+        element.className = 'time ' + style;
+        if (style === 'digital') {
+            element.replaceChildren(digitalTime(text));
+        } else if (style === 'flip') {
+            renderFlip(element, text, previous);
+        } else {
+            element.textContent = text;
+        }
+    }
+
+    function digitalTime(text) {
+        const svg = document.createElementNS(SVG_NS, 'svg');
+        svg.setAttribute('viewBox', '-12 0 286 100');
+        const group = document.createElementNS(SVG_NS, 'g');
+        // Leichte Neigung wie bei üblichen Segmentanzeigen
+        group.setAttribute('transform', 'skewX(-6)');
+        let x = 0;
+        for (const char of text) {
+            if (char === ':') {
+                for (const y of [32, 68]) {
+                    const dot = document.createElementNS(SVG_NS, 'circle');
+                    dot.setAttribute('class', 'colon');
+                    dot.setAttribute('cx', String(x + 12));
+                    dot.setAttribute('cy', String(y));
+                    dot.setAttribute('r', '6');
+                    group.appendChild(dot);
+                }
+                x += 24;
+                continue;
+            }
+            const active = DIGIT_SEGMENTS[char] || '';
+            for (const segment in SEGMENT_POINTS) {
+                const polygon = document.createElementNS(SVG_NS, 'polygon');
+                polygon.setAttribute('class', active.includes(segment) ? 'seg on' : 'seg');
+                polygon.setAttribute('points', SEGMENT_POINTS[segment].map(p => (p[0] + x) + ',' + p[1]).join(' '));
+                group.appendChild(polygon);
+            }
+            x += 64;
+        }
+        svg.appendChild(group);
+        return svg;
+    }
+
+    function flipHalf(className, char) {
+        const half = document.createElement('div');
+        half.className = className;
+        const span = document.createElement('span');
+        span.textContent = char;
+        half.appendChild(span);
+        return half;
+    }
+
+    function renderFlip(element, text, previous) {
+        const animate = previous !== null && element.children.length === text.length
+            && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (!animate) {
+            element.replaceChildren();
+            for (const char of text) {
+                if (char === ':') {
+                    const separator = document.createElement('span');
+                    separator.className = 'separator';
+                    separator.textContent = ':';
+                    element.appendChild(separator);
+                } else {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.append(flipHalf('half top', char), flipHalf('half bottom', char));
+                    element.appendChild(card);
+                }
+            }
+            return;
+        }
+        Array.from(text).forEach(function (char, index) {
+            if (char !== ':' && char !== previous[index]) {
+                flipCard(element.children[index], previous[index], char);
+            }
+        });
+    }
+
+    // Oben steht sofort die neue, unten noch die alte Ziffer; das Blatt (vorn alt oben, hinten neu unten) klappt nach unten.
+    function flipCard(card, from, to) {
+        const running = card.querySelector('.leaf');
+        if (running) {
+            running.remove();
+        }
+        card.querySelector('.top span').textContent = to;
+        card.querySelector('.bottom span').textContent = from;
+        const leaf = document.createElement('div');
+        leaf.className = 'leaf';
+        leaf.append(flipHalf('face front', from), flipHalf('face back', to));
+        leaf.addEventListener('animationend', function () {
+            card.querySelector('.bottom span').textContent = to;
+            leaf.remove();
+        });
+        card.appendChild(leaf);
+    }
+
+    function renderStyles() {
+        const container = document.getElementById('styles');
+        if (container.children.length === 0) {
+            for (const key in STYLES) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.dataset.style = key;
+                button.textContent = translate(STYLES[key]);
+                button.addEventListener('click', function () {
+                    requestAction('SetDisplayStyle', key);
+                });
+                container.appendChild(button);
+            }
+        }
+        const current = STYLES[state.style] ? state.style : 'standard';
+        for (const button of container.children) {
+            button.classList.toggle('on', button.dataset.style === current);
+        }
+    }
+
     let iconName = null;
 
     function renderIcon() {

@@ -18,5 +18,6 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Auswahl der zentralen Aktionen pro Wecker; nur Heizungsaktionen haben einen eigenen Zeitversatz in Minuten relativ zur Weckzeit, alle anderen laufen zur Weckzeit.
 - Ein einzelner Timer auf den nächsten fälligen Zeitpunkt; Neuberechnung nach Konfigurationsänderung, IP-Symcon-Start und jedem Auslösen.
 - Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt; verpasste Zeitpunkte werden nur innerhalb von 5 Minuten nachgeholt.
+- Wählbare Darstellung der Weckzeit in der kleinen Kachel (Standard, Digital als 7-Segment-Anzeige, Klappzahlen mit Umklapp-Animation), vom Benutzer in der großen Kachel einstellbar.
 - Optional eigene Weckzeit für das Wochenende (Sa–So), in Kachel und Konsole umschaltbar; beim ersten Einschalten wird die bisherige Weckzeit übernommen.
 - Wecker-Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit, maximiert bzw. groß die Einstellungen (Aktiv, Weckzeit, Wochentage, Aktionsauswahl mit Heizungs-Zeitversatz und berechneter Startzeit). Farben und Abstände folgen dem Design der Visualisierung. Das Icon der kleinen Kachel ist je Wecker wählbar und schaltet den Wecker beim Antippen ein bzw. aus. Änderungen werden vom Modul geprüft und sofort gespeichert; die Kachel aktualisiert sich nach jeder Neuberechnung.
