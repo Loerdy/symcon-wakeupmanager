@@ -28,16 +28,19 @@
 
     /* Kompakte Ansicht: nächste Weckzeit */
     .compact {
+        /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
+           und Raum für Icon und Tag (vh umfasst auch die Titelzeile der Kachel). */
+        --time-size: min(23vw, 25vh);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
         padding: 4px;
-        gap: 2px;
+        gap: 4px;
     }
     .compact .icon {
-        font-size: min(14vw, 14vh);
+        font-size: min(12vw, 12vh);
         color: var(--accent-color);
         cursor: pointer;
         padding: 4px;
@@ -49,20 +52,28 @@
     .compact .icon.hidden {
         display: none;
     }
+    /* Zeitfeld mit festem Rahmen wie die Weckzeit in der Einstellungsansicht */
     .compact .time {
-        font-size: min(26vw, 30vh);
+        box-sizing: content-box;
+        height: var(--time-size);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: calc(var(--time-size) * 0.1) calc(var(--time-size) * 0.16);
+        border: 1px solid var(--line-color);
+        border-radius: calc(var(--time-size) * 0.14);
+        /* Ziffernhöhe der Schrift ca. 0,7em: so füllt sie das Feld ähnlich wie Segmente und Karten */
+        font-size: calc(var(--time-size) * 1.15);
         font-weight: 600;
-        line-height: 1.1;
+        line-height: 1;
         font-variant-numeric: tabular-nums;
+        white-space: nowrap;
     }
-    /* Digital: selbst gezeichnete 7-Segment-Ziffern (SVG) */
-    .compact .time.digital {
-        line-height: 0;
-    }
+    /* Digital: selbst gezeichnete 7-Segment-Ziffern (SVG, Seitenverhältnis 286 : 100) */
     .digital svg {
-        width: min(82vw, 115vh);
-        height: auto;
-        margin: 0.08em 0;
+        display: block;
+        height: calc(var(--time-size) * 0.8);
+        width: calc(var(--time-size) * 0.8 * 2.86);
     }
     .digital .seg {
         fill: currentColor;
@@ -77,12 +88,10 @@
     }
 
     /* Klappzahlen: je Ziffer eine Karte aus oberer und unterer Hälfte, beim Wechsel klappt ein Blatt um */
+    /* Kartenhöhe 1.1em = 92 % des Zeitfelds */
     .compact .time.flip {
-        display: flex;
-        align-items: center;
         gap: 0.05em;
-        font-size: min(20vw, 26vh);
-        line-height: 1;
+        font-size: calc(var(--time-size) * 0.84);
     }
     .flip .card {
         position: relative;
@@ -152,7 +161,7 @@
     }
 
     .compact .day {
-        font-size: min(11vw, 12vh);
+        font-size: min(10vw, 11vh);
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -422,14 +431,15 @@
         return element !== null && element.tagName === 'INPUT' && element.type !== 'checkbox' && container.contains(element);
     }
 
-    function dayText(next) {
+    // Kleine Kachel: Kurzform (Mo, Di, ...), Einstellungsansicht: ausgeschrieben.
+    function dayText(next, short) {
         if (next.days === 0) {
             return translate('Today');
         }
         if (next.days === 1) {
             return translate('Tomorrow');
         }
-        return translate(WEEKDAY_NAMES[next.weekday]);
+        return translate((short ? WEEKDAYS : WEEKDAY_NAMES)[next.weekday]);
     }
 
     function startText(start) {
@@ -462,7 +472,7 @@
         compactTime.classList.toggle('muted', !hasNext);
         renderStyles();
         if (hasNext) {
-            compactDay.textContent = dayText(state.next);
+            compactDay.textContent = dayText(state.next, true);
         } else {
             // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
             // Die Zeile bleibt (geschütztes Leerzeichen), damit sich die Anzeige nicht verschiebt.
@@ -471,7 +481,7 @@
         renderIcon();
 
         document.getElementById('next').textContent = state.active && state.next
-            ? translate('Next wake-up') + ': ' + dayText(state.next) + ', ' + state.next.time
+            ? translate('Next wake-up') + ': ' + dayText(state.next, false) + ', ' + state.next.time
             : (state.active ? translate('No next wake-up') : translate('Alarm clock is inactive'));
         document.getElementById('warning').textContent = state.active && STATUS[state.status] ? translate(STATUS[state.status]) : '';
         document.getElementById('active').checked = state.active;
