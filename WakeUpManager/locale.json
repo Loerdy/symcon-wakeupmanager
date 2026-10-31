@@ -43,14 +43,16 @@
             "%d missed action(s) were not executed": "%d verpasste Aktion(en) wurden nicht nachgeholt",
             "Wake-up action not executable: %s": "Weckaktion nicht ausführbar: %s",
             "Wake-up action failed: %s": "Weckaktion fehlgeschlagen: %s",
-            "Compact": "Kompakt",
-            "Large (settings would appear here)": "Groß (Einstellungen würden hier erscheinen)",
-            "Load ID": "Lade-ID",
-            "Resizes": "Größenänderungen",
-            "Pixel ratio": "Pixelverhältnis",
-            "In iframe": "Im iframe",
-            "yes": "ja",
-            "no": "nein"
+            "Heating": "Heizung",
+            "Today": "Heute",
+            "Tomorrow": "Morgen",
+            "Off": "Aus",
+            "Next wake-up": "Nächstes Wecken",
+            "No next wake-up": "Kein nächstes Wecken",
+            "No central actions are selected in the configuration of the alarm clock.": "In der Konfiguration des Weckers sind keine zentralen Aktionen ausgewählt.",
+            "No central actions available.": "Keine zentralen Aktionen vorhanden.",
+            "Offset in minutes: negative = before the wake-up time, positive = after": "Zeitversatz in Minuten: negativ = vor der Weckzeit, positiv = danach",
+            "min": "min"
         }
     }
 }

@@ -222,15 +222,28 @@ class WakeUpManager extends IPSModuleStrict
 
     public function RequestAction(string $Ident, mixed $Value): void
     {
+        try {
+            $this->HandleRequest($Ident, $Value);
+        } catch (Exception $e) {
+            // Abgelehnte oder nicht gespeicherte Änderung: Kachel auf den gespeicherten Stand zurücksetzen.
+            $this->UpdateTile();
+            throw $e;
+        }
+    }
+
+    private function HandleRequest(string $Ident, mixed $Value): void
+    {
         switch ($Ident) {
             case 'ProcessTimer':
                 $this->Process();
                 break;
             case 'SetActive':
-                if (!is_bool($Value)) {
+                // Die Kachel sendet den Wert JSON-kodiert, die Konsole als bool.
+                $active = is_string($Value) ? json_decode($Value) : $Value;
+                if (!is_bool($active)) {
                     $this->RejectValue($Ident);
                 }
-                $this->UpdateSettings(fn () => $this->WriteAttributeBoolean('Active', $Value));
+                $this->UpdateSettings(fn () => $this->WriteAttributeBoolean('Active', $active));
                 break;
             case 'SetWakeUpTime':
                 $time = $this->ParseTime($Value);
@@ -253,12 +266,6 @@ class WakeUpManager extends IPSModuleStrict
                     unset($selection[$Value]);
                     return $selection;
                 });
-                break;
-            case 'TileProbe':
-                // Vorläufig: Messwerte der Test-Kachel nur protokollieren.
-                if (is_string($Value)) {
-                    $this->SendDebug('TileProbe', substr($Value, 0, 500), 0);
-                }
                 break;
             default:
                 throw new Exception('Invalid Ident');
@@ -475,13 +482,88 @@ class WakeUpManager extends IPSModuleStrict
 
     public function GetVisualizationTile(): string
     {
-        $this->SendDebug('Tile', 'GetVisualizationTile called', 0);
         $html = file_get_contents(__DIR__ . '/module.html');
         if ($html === false) {
             $this->SendDebug('Tile', 'module.html cannot be read', 0);
             return '';
         }
-        return $html;
+        // Vollständiger Initialzustand; handleMessage ist erst nach module.html definiert. json_encode maskiert
+        // "/", ein "</script>" in Aktionsnamen kann den Skriptblock deshalb nicht beenden.
+        return $html . '<script>handleMessage(' . json_encode($this->GetTileState()) . ');</script>';
+    }
+
+    private function UpdateTile(): void
+    {
+        $this->UpdateVisualizationValue($this->GetTileState());
+    }
+
+    // Zustand für die Kachel. Liest nur gespeicherte Daten, ohne Status oder Meldungen zu setzen.
+    private function GetTileState(): string
+    {
+        $active = $this->ReadAttributeBoolean('Active');
+        $status = $this->GetStatus();
+        $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
+        $weekdays = $this->LoadWeekdays();
+
+        $next = null;
+        if ($active && $time !== null && $weekdays !== null && in_array($status, [IS_ACTIVE, self::STATUS_CATALOG_UNAVAILABLE], true)) {
+            $now = time();
+            $config = ['hour' => $time['hour'], 'minute' => $time['minute'], 'second' => $time['second'], 'weekdays' => $weekdays];
+            $occurrences = $this->GetOccurrences($config, $now + 1, $now + 8 * 86400);
+            if (count($occurrences) > 0) {
+                // Tag und Uhrzeit in der Zeitzone von IP-Symcon, nicht in der des Browsers.
+                $timezone = new DateTimeZone(date_default_timezone_get());
+                $date = (new DateTimeImmutable('@' . min($occurrences)))->setTimezone($timezone);
+                $today = (new DateTimeImmutable('now', $timezone))->setTime(0, 0);
+                $next = [
+                    'time'    => $date->format('H:i'),
+                    'weekday' => (int) $date->format('N'),
+                    'days'    => $today->diff($date->setTime(0, 0))->days
+                ];
+            }
+        }
+
+        $hint = '';
+        $groups = [];
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+        $selection = $this->LoadSelection();
+        if ($actionInstance <= 0) {
+            $hint = 'noInstance';
+        } elseif ($catalog === null) {
+            $hint = 'catalog';
+        } elseif ($selection === null) {
+            $hint = 'selection';
+        } else {
+            // Auswahlen ohne zentrale Aktion werden nur in der Konsole angezeigt und dort gelöscht.
+            foreach (array_keys(self::GROUP_PROPERTIES) as $group) {
+                $actions = [];
+                foreach ($catalog as $id => $action) {
+                    if ($action['group'] !== $group) {
+                        continue;
+                    }
+                    $row = ['id' => (string) $id, 'name' => $action['name'], 'active' => $selection[$id]['Active'] ?? false];
+                    if ($group === self::OFFSET_GROUP) {
+                        $row['offset'] = $selection[$id]['Offset'] ?? 0;
+                    }
+                    $actions[] = $row;
+                }
+                if (count($actions) > 0) {
+                    $groups[] = ['key' => $group, 'actions' => $actions];
+                }
+            }
+        }
+
+        return (string) json_encode([
+            'active'    => $active,
+            'status'    => $status,
+            'time'      => $time === null ? null : sprintf('%02d:%02d', $time['hour'], $time['minute']),
+            'weekdays'  => $weekdays === null ? null : array_keys($weekdays),
+            'next'      => $next,
+            'hint'      => $hint,
+            'groups'    => $groups,
+            'maxOffset' => self::MAX_OFFSET
+        ], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     // Eine Zeile je zentraler Aktion der Gruppe in zentraler Reihenfolge. Auswahlen, deren zentrale Aktion nicht
@@ -528,6 +610,13 @@ class WakeUpManager extends IPSModuleStrict
     }
 
     private function Process(): void
+    {
+        $this->ProcessSchedule();
+        // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
+        $this->UpdateTile();
+    }
+
+    private function ProcessSchedule(): void
     {
         $semaphore = 'WUM_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($semaphore, 5000)) {

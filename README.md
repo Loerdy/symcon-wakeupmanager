@@ -9,7 +9,7 @@ Die Library enthält zwei Module:
 
 Die Module steuern keine Geräte direkt und haben keine Abhängigkeiten zu anderen Modulen; ausgeführt werden Standard-Aktionen von IP-Symcon.
 
-> Status: Version 0.1 (in Entwicklung). Die HTML-Kachel und optionale Statusvariablen folgen in späteren Versionen.
+> Status: Version 0.1 (in Entwicklung). Optionale Statusvariablen folgen in späteren Versionen.
 
 ## Voraussetzungen
 
@@ -69,9 +69,14 @@ Wird eine zentrale Aktion gelöscht, wird sie in den Weckern nicht mehr ausgefü
 - Beim (Re-)Aktivieren des Weckers wird nichts nachgeholt, auch nicht innerhalb der 5 Minuten. Zeitpunkte während der Deaktivierung entfallen.
 - Schlägt eine Aktion fehl, werden die übrigen Aktionen trotzdem ausgeführt. Der Fehler erscheint im Debug und als Warnung im Meldungsfenster.
 
-## Kachel (Testphase)
+## Kachel
 
-Der Wecker stellt aktuell eine vorläufige Test-Kachel bereit. Sie zeigt ihre eigene Größe in Pixeln an und schreibt die Messwerte ins Debug-Fenster der Instanz (`TileProbe`). Die HTML-Kachel wird auch in der maximierten Ansicht verwendet. Die eigentliche Wecker-Kachel folgt.
+Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie benötigt keine Statusvariablen.
+
+- **Normale Größe:** nächste Weckzeit mit Tag („Heute“, „Morgen“ oder Wochentag). Ist der Wecker aus, erscheint die eingestellte Weckzeit abgeblendet mit „Aus“; bei einem Fehler der entsprechende Hinweis.
+- **Maximiert bzw. ausreichend groß** (ab ca. 500 × 400 Pixel, im Hochformat ab ca. 340 × 600 Pixel): Einstellungen mit Aktiv-Schalter, Weckzeit, Wochentagen und der Aktionsauswahl je Gruppe, bei Heizung mit Zeitversatz.
+
+Änderungen in der Kachel werden vom Modul geprüft und sofort gespeichert, genau wie im unteren Bereich der Konsole. Ungültige Eingaben werden abgelehnt und die Kachel zeigt wieder den gespeicherten Stand. Nicht mehr vorhandene Aktionen werden nur in der Konsole angezeigt und dort gelöscht.
 
 ## Statuscodes
 
