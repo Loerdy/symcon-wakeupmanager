@@ -53,17 +53,19 @@
         display: none;
     }
     /* Zeitfeld mit festem Rahmen wie die Weckzeit in der Einstellungsansicht */
+    /* Feste Höhe und Breite, damit alle Darstellungen gleich groß wirken */
     .compact .time {
         box-sizing: content-box;
         height: var(--time-size);
+        width: calc(var(--time-size) * 2.7);
         display: flex;
         align-items: center;
         justify-content: center;
         padding: calc(var(--time-size) * 0.1) calc(var(--time-size) * 0.16);
         border: 1px solid var(--line-color);
         border-radius: calc(var(--time-size) * 0.14);
-        /* Ziffernhöhe der Schrift ca. 0,7em: so füllt sie das Feld ähnlich wie Segmente und Karten */
-        font-size: calc(var(--time-size) * 1.15);
+        /* Standard-Schrift so groß, dass "08:15" die Feldbreite etwa wie die Klappzahlen füllt */
+        font-size: var(--time-size);
         font-weight: 600;
         line-height: 1;
         font-variant-numeric: tabular-nums;
