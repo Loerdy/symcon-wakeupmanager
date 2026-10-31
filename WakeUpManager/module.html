@@ -28,9 +28,12 @@
 
     /* Kompakte Ansicht: nächste Weckzeit */
     .compact {
+        /* Größen beziehen sich auf den tatsächlich verfügbaren Inhaltsbereich (Container-Einheiten), nicht auf
+           die ganze Kachel: Die Titelzeile ist je nach Design unterschiedlich hoch. */
+        container-type: size;
         /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
-           und Raum für Icon und Tag (vh umfasst auch die Titelzeile der Kachel). */
-        --time-size: min(23vw, 25vh);
+           und Raum für Icon und Tag. */
+        --time-size: min(23cqw, 27cqh);
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -40,7 +43,7 @@
         gap: 4px;
     }
     .compact .icon {
-        font-size: min(12vw, 12vh);
+        font-size: min(12cqw, 13cqh);
         color: var(--accent-color);
         cursor: pointer;
         padding: 4px;
@@ -175,7 +178,7 @@
         }
     }
     .compact .day {
-        font-size: min(10vw, 11vh);
+        font-size: min(10cqw, 12cqh);
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
