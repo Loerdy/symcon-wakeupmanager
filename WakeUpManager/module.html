@@ -46,7 +46,7 @@
         color: inherit;
         opacity: 0.4;
     }
-    .compact .icon.hidden, .compact .day:empty {
+    .compact .icon.hidden {
         display: none;
     }
     .compact .time {
@@ -204,7 +204,8 @@
 </style>
 
 <div class="view compact">
-    <i class="icon hidden" id="icon" role="button" title="Switch alarm clock on/off"></i>
+    <!-- icons.js ersetzt <i>-Icons durch SVG; Klick und Farbe deshalb am festen Container, das Icon wird darin neu eingesetzt. -->
+    <div class="icon hidden" id="icon" role="button" title="Switch alarm clock on/off"></div>
     <div class="time" id="compactTime">--:--</div>
     <div class="day" id="compactDay"></div>
 </div>
@@ -311,7 +312,8 @@
             compactTime.textContent = '--:--';
             compactTime.classList.add('muted');
             // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
-            compactDay.textContent = state.active ? statusText() : '';
+            // Die Zeile bleibt (geschütztes Leerzeichen), damit sich die Anzeige nicht verschiebt.
+            compactDay.textContent = state.active ? statusText() : ' ';
         }
         renderIcon();
 
@@ -341,11 +343,22 @@
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
+    let iconName = null;
+
     function renderIcon() {
-        const icon = document.getElementById('icon');
-        const name = typeof state.icon === 'string' ? state.icon : '';
-        const valid = /^[a-z0-9-]+$/.test(name);
-        icon.className = 'icon' + (valid ? ' fa-light fa-' + name : ' hidden') + (state.active ? '' : ' off');
+        const container = document.getElementById('icon');
+        const name = typeof state.icon === 'string' && /^[a-z0-9-]+$/.test(state.icon) ? state.icon : '';
+        container.classList.toggle('hidden', name === '');
+        container.classList.toggle('off', !state.active);
+        if (name !== iconName) {
+            iconName = name;
+            container.replaceChildren();
+            if (name !== '') {
+                const icon = document.createElement('i');
+                icon.className = 'fa-light fa-' + name;
+                container.appendChild(icon);
+            }
+        }
     }
 
     function renderDays() {
