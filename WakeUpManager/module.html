@@ -147,6 +147,12 @@
         width: 5em;
         text-align: right;
     }
+    .block {
+        display: flex;
+        align-items: center;
+        gap: 12px 16px;
+        flex-wrap: wrap;
+    }
     .days {
         display: flex;
         gap: 6px;
@@ -222,12 +228,24 @@
         <div class="warning" id="warning"></div>
     </div>
     <div class="section">
-        <div class="caption">Wake-up time</div>
-        <input type="time" id="time">
+        <label>
+            <input type="checkbox" id="separate">
+            <span>Separate wake-up time for the weekend (Sat–Sun)</span>
+        </label>
     </div>
     <div class="section">
-        <div class="caption">Active weekdays</div>
-        <div class="days" id="days"></div>
+        <div class="caption" id="weekCaption">Wake-up time</div>
+        <div class="block">
+            <input type="time" id="time" data-ident="SetWakeUpTime">
+            <div class="days" id="days"></div>
+        </div>
+    </div>
+    <div class="section" id="weekendBlock" hidden>
+        <div class="caption">Saturday – Sunday</div>
+        <div class="block">
+            <input type="time" id="timeWeekend" data-ident="SetWakeUpTimeWeekend">
+            <div class="days" id="daysWeekend"></div>
+        </div>
     </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
@@ -323,11 +341,16 @@
         document.getElementById('warning').textContent = state.active && STATUS[state.status] ? translate(STATUS[state.status]) : '';
         document.getElementById('active').checked = state.active;
 
-        const time = document.getElementById('time');
-        if (document.activeElement === time) {
-            deferred = true;
-        } else {
-            time.value = state.time || '';
+        document.getElementById('separate').checked = state.separate;
+        document.getElementById('weekendBlock').hidden = !state.separate;
+        document.getElementById('weekCaption').textContent = translate(state.separate ? 'Monday – Friday' : 'Wake-up time');
+        for (const [id, value] of [['time', state.time], ['timeWeekend', state.weekend]]) {
+            const input = document.getElementById(id);
+            if (document.activeElement === input) {
+                deferred = true;
+            } else {
+                input.value = value || '';
+            }
         }
 
         renderDays();
@@ -361,23 +384,26 @@
         }
     }
 
+    const dayButtons = {};
+
+    // Bei getrenntem Wochenende stehen Sa/So im eigenen Block.
     function renderDays() {
         const days = document.getElementById('days');
-        if (days.children.length === 0) {
-            for (const day in WEEKDAYS) {
+        const weekend = document.getElementById('daysWeekend');
+        for (const day in WEEKDAYS) {
+            if (!dayButtons[day]) {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.textContent = translate(WEEKDAYS[day]);
                 button.addEventListener('click', function () {
                     send('SetWeekday', { Day: Number(day), Active: !button.classList.contains('on') });
                 });
-                days.appendChild(button);
+                dayButtons[day] = button;
             }
-        }
-        for (const button of days.children) {
-            const day = Array.prototype.indexOf.call(days.children, button) + 1;
+            const button = dayButtons[day];
+            (state.separate && Number(day) >= 6 ? weekend : days).appendChild(button);
             button.disabled = state.weekdays === null;
-            button.classList.toggle('on', state.weekdays !== null && state.weekdays.includes(day));
+            button.classList.toggle('on', state.weekdays !== null && state.weekdays.includes(Number(day)));
         }
     }
 
@@ -438,7 +464,8 @@
             if (action.start) {
                 const start = document.createElement('span');
                 start.className = 'start';
-                start.textContent = '→ ' + startText(action.start);
+                // Nicht ausgeführte Aktionen haben keine Startzeit.
+                start.textContent = '→ ' + (action.active ? startText(action.start) : '--:--');
                 start.title = translate('Start time');
                 offset.appendChild(start);
             }
@@ -457,12 +484,18 @@
         send('SetActive', event.target.checked);
     });
 
-    document.getElementById('time').addEventListener('change', function (event) {
-        const value = event.target.value;
-        if (/^\d{2}:\d{2}/.test(value)) {
-            requestAction('SetWakeUpTime', value.substring(0, 5));
-        }
+    document.getElementById('separate').addEventListener('change', function (event) {
+        send('SetSeparateWeekend', event.target.checked);
     });
+
+    for (const id of ['time', 'timeWeekend']) {
+        document.getElementById(id).addEventListener('change', function (event) {
+            const value = event.target.value;
+            if (/^\d{2}:\d{2}/.test(value)) {
+                requestAction(event.target.dataset.ident, value.substring(0, 5));
+            }
+        });
+    }
 
     // Nach Ende einer Eingabe die zwischenzeitlich eingetroffenen Aktualisierungen anzeigen.
     document.addEventListener('focusout', function () {

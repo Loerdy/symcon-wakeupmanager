@@ -25,6 +25,9 @@ class WakeUpManager extends IPSModuleStrict
         7 => 'Sunday'
     ];
 
+    // Tage mit eigener Weckzeit, wenn das Wochenende getrennt eingestellt ist.
+    private const WEEKEND = [6, 7];
+
     // Eigenschaft je Gruppe in WakeUpActions und gleichnamige Liste im Formular hier; die Gruppenschlüssel
     // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz.
     private const GROUP_PROPERTIES = [
@@ -56,6 +59,9 @@ class WakeUpManager extends IPSModuleStrict
         // Einstellungen für die tägliche Bedienung (Kachel und Konsole) werden vom Modul nach Prüfung sofort gespeichert.
         $this->RegisterAttributeBoolean('Active', false);
         $this->RegisterAttributeString('WakeUpTime', '{"hour":6,"minute":30,"second":0}');
+        // Eigene Weckzeit für Sa/So; leer = noch nie eingestellt (beim ersten Einschalten wird WakeUpTime übernommen).
+        $this->RegisterAttributeBoolean('SeparateWeekend', false);
+        $this->RegisterAttributeString('WakeUpTimeWeekend', '');
         // Aktive Wochentage als ISO-8601-Nummern (1 = Montag)
         $this->RegisterAttributeString('Weekdays', '[1,2,3,4,5]');
         // Auswahl aus den zentralen Aktionen: [{"ID": "<ID der zentralen Aktion>", "Active": bool, "Offset": Minuten}, ...]
@@ -253,6 +259,29 @@ class WakeUpManager extends IPSModuleStrict
                 }
                 $this->UpdateSettings(fn () => $this->WriteAttributeString('WakeUpTime', json_encode($time)));
                 break;
+            case 'SetSeparateWeekend':
+                $separate = is_string($Value) ? json_decode($Value) : $Value;
+                if (!is_bool($separate)) {
+                    $this->RejectValue($Ident);
+                }
+                $this->UpdateSettings(function () use ($separate): void {
+                    // Beim ersten Einschalten die bisherige Weckzeit für das Wochenende übernehmen.
+                    if ($separate && $this->ReadAttributeString('WakeUpTimeWeekend') === '') {
+                        $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
+                        if ($time !== null) {
+                            $this->WriteAttributeString('WakeUpTimeWeekend', json_encode($time));
+                        }
+                    }
+                    $this->WriteAttributeBoolean('SeparateWeekend', $separate);
+                });
+                break;
+            case 'SetWakeUpTimeWeekend':
+                $time = $this->ParseTime($Value);
+                if ($time === null) {
+                    $this->RejectValue($Ident);
+                }
+                $this->UpdateSettings(fn () => $this->WriteAttributeString('WakeUpTimeWeekend', json_encode($time)));
+                break;
             case 'SetWeekday':
                 $this->SetWeekday($this->DecodeObject($Value));
                 break;
@@ -409,6 +438,7 @@ class WakeUpManager extends IPSModuleStrict
             'catalog'        => $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null,
             'selection'      => $this->LoadSelection(),
             'time'           => $this->ParseTime($this->ReadAttributeString('WakeUpTime')),
+            'weekendTime'    => $this->GetWeekendTime(),
             'weekdays'       => $this->LoadWeekdays()
         ];
         $this->FillFormElements($form['actions'], $context);
@@ -427,6 +457,12 @@ class WakeUpManager extends IPSModuleStrict
             } elseif ($name === 'WakeUpTime') {
                 if ($context['time'] !== null) {
                     $element['value'] = json_encode($context['time']);
+                }
+            } elseif ($name === 'SeparateWeekend') {
+                $element['value'] = $this->ReadAttributeBoolean('SeparateWeekend');
+            } elseif ($name === 'WakeUpTimeWeekend') {
+                if ($context['weekendTime'] !== null) {
+                    $element['value'] = json_encode($context['weekendTime']);
                 }
             } elseif (($day = array_search($name, self::WEEKDAYS, true)) !== false) {
                 if ($context['weekdays'] === null) {
@@ -459,6 +495,29 @@ class WakeUpManager extends IPSModuleStrict
             }
         }
         unset($element);
+    }
+
+    // Weckzeit für Sa/So zur Anzeige; solange sie nie eingestellt wurde, die Weckzeit, die beim Einschalten übernommen wird.
+    private function GetWeekendTime(): ?array
+    {
+        $value = $this->ReadAttributeString('WakeUpTimeWeekend');
+        return $this->ParseTime($value === '' ? $this->ReadAttributeString('WakeUpTime') : $value);
+    }
+
+    // Weckzeit je ISO-Wochentag oder null, wenn eine benötigte Weckzeit nicht lesbar ist.
+    private function LoadTimes(): ?array
+    {
+        $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
+        $weekendTime = $this->ReadAttributeBoolean('SeparateWeekend') ? $this->ParseTime($this->ReadAttributeString('WakeUpTimeWeekend')) : $time;
+        if ($time === null || $weekendTime === null) {
+            $this->SendDebug('Configuration', 'Invalid wake-up time', 0);
+            return null;
+        }
+        $times = [];
+        foreach (array_keys(self::WEEKDAYS) as $day) {
+            $times[$day] = in_array($day, self::WEEKEND, true) ? $weekendTime : $time;
+        }
+        return $times;
     }
 
     // Liefert die aktiven Wochentage als [ISO-Nummer => true] oder null, wenn die gespeicherten Daten nicht lesbar sind.
@@ -504,6 +563,8 @@ class WakeUpManager extends IPSModuleStrict
         $active = $this->ReadAttributeBoolean('Active');
         $status = $this->GetStatus();
         $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
+        $weekendTime = $this->GetWeekendTime();
+        $times = $this->LoadTimes();
         $weekdays = $this->LoadWeekdays();
 
         // Tage und Uhrzeiten in der Zeitzone von IP-Symcon, nicht in der des Browsers.
@@ -511,13 +572,14 @@ class WakeUpManager extends IPSModuleStrict
         $next = null;
         // Bezugspunkt für die Startzeiten der Heizung: nächster Weckzeitpunkt, sonst die Weckzeit am heutigen Tag.
         $reference = null;
-        if ($time !== null) {
-            $reference = (new DateTimeImmutable('now', $timezone))->setTime($time['hour'], $time['minute'], $time['second'])->getTimestamp();
+        if ($times !== null) {
+            $today = new DateTimeImmutable('now', $timezone);
+            $todayTime = $times[(int) $today->format('N')];
+            $reference = $today->setTime($todayTime['hour'], $todayTime['minute'], $todayTime['second'])->getTimestamp();
         }
-        if ($active && $time !== null && $weekdays !== null && in_array($status, [IS_ACTIVE, self::STATUS_CATALOG_UNAVAILABLE], true)) {
+        if ($active && $times !== null && $weekdays !== null && in_array($status, [IS_ACTIVE, self::STATUS_CATALOG_UNAVAILABLE], true)) {
             $now = time();
-            $config = ['hour' => $time['hour'], 'minute' => $time['minute'], 'second' => $time['second'], 'weekdays' => $weekdays];
-            $occurrences = $this->GetOccurrences($config, $now + 1, $now + 8 * 86400);
+            $occurrences = $this->GetOccurrences(['times' => $times, 'weekdays' => $weekdays], $now + 1, $now + 8 * 86400);
             if (count($occurrences) > 0) {
                 $reference = min($occurrences);
                 $date = (new DateTimeImmutable('@' . $reference))->setTimezone($timezone);
@@ -573,6 +635,8 @@ class WakeUpManager extends IPSModuleStrict
             'icon'      => $this->ReadPropertyString('Icon'),
             'status'    => $status,
             'time'      => $time === null ? null : sprintf('%02d:%02d', $time['hour'], $time['minute']),
+            'separate'  => $this->ReadAttributeBoolean('SeparateWeekend'),
+            'weekend'   => $weekendTime === null ? null : sprintf('%02d:%02d', $weekendTime['hour'], $weekendTime['minute']),
             'weekdays'  => $weekdays === null ? null : array_keys($weekdays),
             'next'      => $next,
             'hint'      => $hint,
@@ -666,9 +730,8 @@ class WakeUpManager extends IPSModuleStrict
 
     private function LoadConfiguration(): ?array
     {
-        $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
-        if ($time === null) {
-            $this->SendDebug('Configuration', 'Invalid wake-up time', 0);
+        $times = $this->LoadTimes();
+        if ($times === null) {
             $this->SetStatus(self::STATUS_INVALID_TIME);
             return null;
         }
@@ -720,9 +783,7 @@ class WakeUpManager extends IPSModuleStrict
         }
 
         return [
-            'hour'     => $time['hour'],
-            'minute'   => $time['minute'],
-            'second'   => $time['second'],
+            'times'    => $times,
             'weekdays' => $weekdays,
             'catalog'  => $catalog,
             'actions'  => $actions
@@ -987,9 +1048,11 @@ class WakeUpManager extends IPSModuleStrict
 
         $occurrences = [];
         while ($day <= $end) {
-            if (isset($config['weekdays'][(int) $day->format('N')])) {
+            $weekday = (int) $day->format('N');
+            if (isset($config['weekdays'][$weekday])) {
                 // Nicht existierende Uhrzeiten (Zeitumstellung) verschiebt PHP auf die nächste gültige Uhrzeit.
-                $occurrence = $day->setTime($config['hour'], $config['minute'], $config['second'])->getTimestamp();
+                $time = $config['times'][$weekday];
+                $occurrence = $day->setTime($time['hour'], $time['minute'], $time['second'])->getTimestamp();
                 if ($occurrence >= $from && $occurrence <= $to) {
                     $occurrences[] = $occurrence;
                 }

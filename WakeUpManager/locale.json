@@ -64,7 +64,12 @@
             "(day after)": "(Folgetag)",
             "Start time": "Startzeit",
             "Tile icon (tap in the tile switches the alarm clock on/off)": "Kachel-Icon (Antippen in der Kachel schaltet den Wecker ein/aus)",
-            "Switch alarm clock on/off": "Wecker ein-/ausschalten"
+            "Switch alarm clock on/off": "Wecker ein-/ausschalten",
+            "Separate wake-up time for the weekend (Sat–Sun)": "Eigene Weckzeit für das Wochenende (Sa–So)",
+            "Wake-up time weekend": "Weckzeit Wochenende",
+            "Save weekend wake-up time": "Weckzeit Wochenende speichern",
+            "Monday – Friday": "Montag – Freitag",
+            "Saturday – Sunday": "Samstag – Sonntag"
         }
     }
 }

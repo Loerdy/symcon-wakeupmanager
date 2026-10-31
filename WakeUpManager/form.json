@@ -18,6 +18,14 @@
                 { "type": "Button", "caption": "Save wake-up time", "onClick": "IPS_RequestAction($id, 'SetWakeUpTime', $WakeUpTime);" }
             ]
         },
+        { "type": "CheckBox", "name": "SeparateWeekend", "caption": "Separate wake-up time for the weekend (Sat–Sun)", "onChange": "IPS_RequestAction($id, 'SetSeparateWeekend', $SeparateWeekend);" },
+        {
+            "type": "RowLayout",
+            "items": [
+                { "type": "SelectTime", "name": "WakeUpTimeWeekend", "caption": "Wake-up time weekend" },
+                { "type": "Button", "caption": "Save weekend wake-up time", "onClick": "IPS_RequestAction($id, 'SetWakeUpTimeWeekend', $WakeUpTimeWeekend);" }
+            ]
+        },
         { "type": "Label", "caption": "Active weekdays" },
         {
             "type": "RowLayout",

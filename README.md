@@ -49,7 +49,9 @@ Aktionen aus der früheren gemeinsamen Liste werden beim Modul-Update automatisc
 | --- | --- |
 | Wecker aktiv | Globaler Ein/Aus-Schalter. Neue Instanzen sind deaktiviert. |
 | Weckzeit | Uhrzeit des Weckens (Standard 06:30), gespeichert über **Weckzeit speichern**. |
-| Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr). |
+| Eigene Weckzeit für das Wochenende | Wenn eingeschaltet, gilt die Weckzeit nur für Mo–Fr und Sa/So erhalten eine eigene Weckzeit. Beim ersten Einschalten wird die bisherige Weckzeit übernommen. |
+| Weckzeit Wochenende | Weckzeit für Sa/So bei eingeschalteter Option, gespeichert über **Weckzeit Wochenende speichern**. |
+| Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr), auch bei getrenntem Wochenende einzeln wählbar. |
 | Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe eine Liste der zentralen Aktionen mit **Ausführen** (an/aus); bei Heizung zusätzlich **Zeitversatz**. Leere Gruppen werden ausgeblendet. |
 
 Nach Auswahl der zentralen Instanz einmal **Übernehmen**, danach erscheinen die Aktionen zur Auswahl. Alle Eingaben werden vom Modul geprüft; ungültige Werte werden abgelehnt.
@@ -75,7 +77,7 @@ Wird eine zentrale Aktion gelöscht, wird sie in den Weckern nicht mehr ausgefü
 Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie benötigt keine Statusvariablen.
 
 - **Normale Größe:** Icon und nächste Weckzeit mit Tag („Heute“, „Morgen“ oder ausgeschriebener Wochentag). Antippen des Icons schaltet den Wecker ein bzw. aus. Ist der Wecker aus, erscheinen das Icon abgeblendet und `--:--` ohne weitere Beschriftung; bei einem Fehler der entsprechende Hinweis.
-- **Maximiert bzw. ausreichend groß** (ab ca. 500 × 400 Pixel, im Hochformat ab ca. 340 × 600 Pixel): Einstellungen mit Aktiv-Schalter, Weckzeit, Wochentagen und der Aktionsauswahl je Gruppe. Bei Heizung zusätzlich mit Zeitversatz und der sich daraus ergebenden Startzeit, bezogen auf das nächste Wecken (bzw. die heutige Weckzeit, wenn kein nächstes Wecken ansteht), gegebenenfalls mit „(Vortag)“ oder „(Folgetag)“.
+- **Maximiert bzw. ausreichend groß** (ab ca. 500 × 400 Pixel, im Hochformat ab ca. 340 × 600 Pixel): Einstellungen mit Aktiv-Schalter, Weckzeit, Wochentagen, der Option für ein getrenntes Wochenende (dann je ein Block Mo–Fr und Sa–So mit eigener Weckzeit) und der Aktionsauswahl je Gruppe. Bei Heizung zusätzlich mit Zeitversatz und der sich daraus ergebenden Startzeit, bezogen auf das nächste Wecken (bzw. die heutige Weckzeit, wenn kein nächstes Wecken ansteht), gegebenenfalls mit „(Vortag)“ oder „(Folgetag)“. Nicht ausgewählte Heizungsaktionen zeigen `--:--`.
 
 Änderungen in der Kachel werden vom Modul geprüft und sofort gespeichert, genau wie im unteren Bereich der Konsole. Ungültige Eingaben werden abgelehnt und die Kachel zeigt wieder den gespeicherten Stand. Nicht mehr vorhandene Aktionen werden nur in der Konsole angezeigt und dort gelöscht.
 
