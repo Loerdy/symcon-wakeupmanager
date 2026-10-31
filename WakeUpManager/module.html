@@ -39,6 +39,15 @@
     .compact .icon {
         font-size: min(14vw, 14vh);
         color: var(--accent-color);
+        cursor: pointer;
+        padding: 4px;
+    }
+    .compact .icon.off {
+        color: inherit;
+        opacity: 0.4;
+    }
+    .compact .icon.hidden, .compact .day:empty {
+        display: none;
     }
     .compact .time {
         font-size: min(26vw, 30vh);
@@ -195,7 +204,7 @@
 </style>
 
 <div class="view compact">
-    <i class="fa-light fa-alarm-clock icon"></i>
+    <i class="icon hidden" id="icon" role="button" title="Switch alarm clock on/off"></i>
     <div class="time" id="compactTime">--:--</div>
     <div class="day" id="compactDay"></div>
 </div>
@@ -299,10 +308,12 @@
             compactTime.classList.remove('muted');
             compactDay.textContent = dayText(state.next);
         } else {
-            compactTime.textContent = state.time || '--:--';
+            compactTime.textContent = '--:--';
             compactTime.classList.add('muted');
-            compactDay.textContent = statusText();
+            // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
+            compactDay.textContent = state.active ? statusText() : '';
         }
+        renderIcon();
 
         document.getElementById('next').textContent = state.active && state.next
             ? translate('Next wake-up') + ': ' + dayText(state.next) + ', ' + state.next.time
@@ -327,6 +338,14 @@
         }
         document.getElementById('hint').textContent = state.hint ? translate(HINTS[state.hint])
             : (state.groups.length === 0 ? translate('No central actions available.') : '');
+    }
+
+    // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
+    function renderIcon() {
+        const icon = document.getElementById('icon');
+        const name = typeof state.icon === 'string' ? state.icon : '';
+        const valid = /^[a-z0-9-]+$/.test(name);
+        icon.className = 'icon' + (valid ? ' fa-light fa-' + name : ' hidden') + (state.active ? '' : ' off');
     }
 
     function renderDays() {
@@ -414,6 +433,12 @@
         }
         return row;
     }
+
+    document.getElementById('icon').addEventListener('click', function () {
+        if (state !== null) {
+            send('SetActive', !state.active);
+        }
+    });
 
     document.getElementById('active').addEventListener('change', function (event) {
         send('SetActive', event.target.checked);

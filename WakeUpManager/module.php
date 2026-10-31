@@ -51,6 +51,7 @@ class WakeUpManager extends IPSModuleStrict
 
         // Einrichtung über die Konsole ("Übernehmen")
         $this->RegisterPropertyInteger('ActionInstance', 0);
+        $this->RegisterPropertyString('Icon', 'alarm-clock');
 
         // Einstellungen für die tägliche Bedienung (Kachel und Konsole) werden vom Modul nach Prüfung sofort gespeichert.
         $this->RegisterAttributeBoolean('Active', false);
@@ -569,6 +570,7 @@ class WakeUpManager extends IPSModuleStrict
 
         return (string) json_encode([
             'active'    => $active,
+            'icon'      => $this->ReadPropertyString('Icon'),
             'status'    => $status,
             'time'      => $time === null ? null : sprintf('%02d:%02d', $time['hour'], $time['minute']),
             'weekdays'  => $weekdays === null ? null : array_keys($weekdays),

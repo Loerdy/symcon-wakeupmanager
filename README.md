@@ -41,6 +41,7 @@ Aktionen aus der früheren gemeinsamen Liste werden beim Modul-Update automatisc
 | Einstellung | Beschreibung |
 | --- | --- |
 | Zentrale Aktionen | Die WakeUpActions-Instanz, aus der Aktionen ausgewählt werden. |
+| Kachel-Icon | Icon in der kleinen Kachel (Standard: Wecker). Leer = kein Icon. |
 
 **Einstellungen** (unterer Bereich, werden **sofort gespeichert** – dieselben Einstellungen sind später auch in der Kachel bedienbar):
 
@@ -73,7 +74,7 @@ Wird eine zentrale Aktion gelöscht, wird sie in den Weckern nicht mehr ausgefü
 
 Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie benötigt keine Statusvariablen.
 
-- **Normale Größe:** nächste Weckzeit mit Tag („Heute“, „Morgen“ oder ausgeschriebener Wochentag). Ist der Wecker aus, erscheint die eingestellte Weckzeit abgeblendet mit „Aus“; bei einem Fehler der entsprechende Hinweis.
+- **Normale Größe:** Icon und nächste Weckzeit mit Tag („Heute“, „Morgen“ oder ausgeschriebener Wochentag). Antippen des Icons schaltet den Wecker ein bzw. aus. Ist der Wecker aus, erscheinen das Icon abgeblendet und `--:--` ohne weitere Beschriftung; bei einem Fehler der entsprechende Hinweis.
 - **Maximiert bzw. ausreichend groß** (ab ca. 500 × 400 Pixel, im Hochformat ab ca. 340 × 600 Pixel): Einstellungen mit Aktiv-Schalter, Weckzeit, Wochentagen und der Aktionsauswahl je Gruppe. Bei Heizung zusätzlich mit Zeitversatz und der sich daraus ergebenden Startzeit, bezogen auf das nächste Wecken (bzw. die heutige Weckzeit, wenn kein nächstes Wecken ansteht), gegebenenfalls mit „(Vortag)“ oder „(Folgetag)“.
 
 Änderungen in der Kachel werden vom Modul geprüft und sofort gespeichert, genau wie im unteren Bereich der Konsole. Ungültige Eingaben werden abgelehnt und die Kachel zeigt wieder den gespeicherten Stand. Nicht mehr vorhandene Aktionen werden nur in der Konsole angezeigt und dort gelöscht.

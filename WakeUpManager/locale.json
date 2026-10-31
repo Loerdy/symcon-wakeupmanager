@@ -62,7 +62,9 @@
             "Sunday": "Sonntag",
             "(day before)": "(Vortag)",
             "(day after)": "(Folgetag)",
-            "Start time": "Startzeit"
+            "Start time": "Startzeit",
+            "Tile icon (tap in the tile switches the alarm clock on/off)": "Kachel-Icon (Antippen in der Kachel schaltet den Wecker ein/aus)",
+            "Switch alarm clock on/off": "Wecker ein-/ausschalten"
         }
     }
 }

@@ -5,7 +5,8 @@
             "name": "ActionInstance",
             "caption": "Central actions (WakeUpActions)",
             "validModules": ["{4E963960-1F66-A246-3BC9-BA42E525A6F7}"]
-        }
+        },
+        { "type": "SelectIcon", "name": "Icon", "caption": "Tile icon (tap in the tile switches the alarm clock on/off)" }
     ],
     "actions": [
         { "type": "Label", "caption": "Settings of the alarm clock. Changes are saved immediately, also when made in the tile." },
