@@ -50,7 +50,6 @@ class WakeUpManager extends IPSModuleStrict
     private const STATUS_INVALID_ACTIONS = 203;
     private const STATUS_CATALOG_UNAVAILABLE = 204;
     private const STATUS_INVALID_WEEKDAYS = 205;
-
     public function Create(): void
     {
         parent::Create();
@@ -143,38 +142,6 @@ class WakeUpManager extends IPSModuleStrict
         return $result === false ? '' : $result;
     }
 
-    // Führt die früheren Auswahllisten (je Gruppe und gemeinsame Altliste) zu einer Liste zusammen; der erste Eintrag
-    // je ID gilt. Ist eine Liste nicht lesbar, wird deren Originalinhalt unverändert übernommen (Status 203 statt
-    // stillem Verlust). Einträge ohne ID (Format vor den zentralen Aktionen) sind nicht zuordenbar und entfallen.
-    private function MigrateSelection(object $configuration): ?string
-    {
-        $present = false;
-        $rows = [];
-        $seen = [];
-        foreach ([...array_values(self::GROUP_PROPERTIES), self::LEGACY_PROPERTY] as $property) {
-            if (!property_exists($configuration, $property)) {
-                continue;
-            }
-            $present = true;
-            $list = $this->DecodeList($configuration->$property);
-            if ($list === null) {
-                return is_string($configuration->$property) ? $configuration->$property : (string) json_encode($configuration->$property);
-            }
-            foreach ($list as $row) {
-                $id = is_array($row) ? ($row['ID'] ?? null) : null;
-                if (is_string($id) && $id !== '' && !isset($seen[$id])) {
-                    $seen[$id] = true;
-                    $rows[] = $row;
-                }
-            }
-        }
-        if (!$present) {
-            return null;
-        }
-        $encoded = json_encode($rows);
-        return $encoded === false ? null : $encoded;
-    }
-
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
@@ -215,6 +182,84 @@ class WakeUpManager extends IPSModuleStrict
         }
     }
 
+    public function RequestAction(string $Ident, mixed $Value): void
+    {
+        try {
+            $this->HandleRequest($Ident, $Value);
+        } catch (Exception $e) {
+            // Abgelehnte oder nicht gespeicherte Änderung: Kachel auf den gespeicherten Stand zurücksetzen.
+            $this->UpdateTile();
+            throw $e;
+        }
+    }
+
+    public function GetConfigurationForm(): string
+    {
+        $content = file_get_contents(__DIR__ . '/form.json');
+        $form = is_string($content) ? json_decode($content, true) : null;
+        if (!is_array($form) || !isset($form['actions']) || !is_array($form['actions'])) {
+            $this->SendDebug('Form', 'form.json cannot be read', 0);
+            return is_string($content) ? $content : '{}';
+        }
+
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $context = [
+            'actionInstance' => $actionInstance,
+            'catalog'        => $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null,
+            'selection'      => $this->LoadSelection(),
+            'time'           => $this->ParseTime($this->ReadAttributeString('WakeUpTime')),
+            'weekendTime'    => $this->GetWeekendTime(),
+            'weekdays'       => $this->LoadWeekdays()
+        ];
+        $this->FillFormElements($form['actions'], $context);
+
+        return json_encode($form);
+    }
+
+    public function GetVisualizationTile(): string
+    {
+        $html = file_get_contents(__DIR__ . '/module.html');
+        if ($html === false) {
+            $this->SendDebug('Tile', 'module.html cannot be read', 0);
+            return '';
+        }
+        // Vollständiger Initialzustand; handleMessage ist erst nach module.html definiert. json_encode maskiert
+        // "/", ein "</script>" in Aktionsnamen kann den Skriptblock deshalb nicht beenden.
+        return $html . '<script>handleMessage(' . json_encode($this->GetTileState()) . ');</script>';
+    }
+
+    // Führt die früheren Auswahllisten (je Gruppe und gemeinsame Altliste) zu einer Liste zusammen; der erste Eintrag
+    // je ID gilt. Ist eine Liste nicht lesbar, wird deren Originalinhalt unverändert übernommen (Status 203 statt
+    // stillem Verlust). Einträge ohne ID (Format vor den zentralen Aktionen) sind nicht zuordenbar und entfallen.
+    private function MigrateSelection(object $configuration): ?string
+    {
+        $present = false;
+        $rows = [];
+        $seen = [];
+        foreach ([...array_values(self::GROUP_PROPERTIES), self::LEGACY_PROPERTY] as $property) {
+            if (!property_exists($configuration, $property)) {
+                continue;
+            }
+            $present = true;
+            $list = $this->DecodeList($configuration->$property);
+            if ($list === null) {
+                return is_string($configuration->$property) ? $configuration->$property : (string) json_encode($configuration->$property);
+            }
+            foreach ($list as $row) {
+                $id = is_array($row) ? ($row['ID'] ?? null) : null;
+                if (is_string($id) && $id !== '' && !isset($seen[$id])) {
+                    $seen[$id] = true;
+                    $rows[] = $row;
+                }
+            }
+        }
+        if (!$present) {
+            return null;
+        }
+        $encoded = json_encode($rows);
+        return $encoded === false ? null : $encoded;
+    }
+
     // Nach Neuladen (z. B. Modul-Update) oder Änderung der zentralen Aktionen neu berechnen.
     private function RegisterCatalogMessages(): void
     {
@@ -229,17 +274,6 @@ class WakeUpManager extends IPSModuleStrict
         if ($actionInstance > 0 && IPS_InstanceExists($actionInstance)) {
             $this->RegisterMessage($actionInstance, IM_CHANGESTATUS);
             $this->RegisterMessage($actionInstance, IM_CHANGESETTINGS);
-        }
-    }
-
-    public function RequestAction(string $Ident, mixed $Value): void
-    {
-        try {
-            $this->HandleRequest($Ident, $Value);
-        } catch (Exception $e) {
-            // Abgelehnte oder nicht gespeicherte Änderung: Kachel auf den gespeicherten Stand zurücksetzen.
-            $this->UpdateTile();
-            throw $e;
         }
     }
 
@@ -269,7 +303,8 @@ class WakeUpManager extends IPSModuleStrict
                 if (!is_bool($separate)) {
                     $this->RejectValue($Ident);
                 }
-                $this->UpdateSettings(function () use ($separate): void {
+                $this->UpdateSettings(function () use ($separate): void
+                {
                     // Beim ersten Einschalten die bisherige Weckzeit für das Wochenende übernehmen.
                     if ($separate && $this->ReadAttributeString('WakeUpTimeWeekend') === '') {
                         $time = $this->ParseTime($this->ReadAttributeString('WakeUpTime'));
@@ -307,7 +342,8 @@ class WakeUpManager extends IPSModuleStrict
                 if (!is_string($Value) || $Value === '') {
                     $this->RejectValue($Ident);
                 }
-                $this->UpdateSelection(static function (array $selection) use ($Value): array {
+                $this->UpdateSelection(static function (array $selection) use ($Value): array
+                {
                     unset($selection[$Value]);
                     return $selection;
                 });
@@ -324,7 +360,8 @@ class WakeUpManager extends IPSModuleStrict
         if (!is_int($day) || !isset(self::WEEKDAYS[$day]) || !is_bool($active)) {
             $this->RejectValue('SetWeekday');
         }
-        $this->UpdateSettings(function () use ($day, $active): void {
+        $this->UpdateSettings(function () use ($day, $active): void
+        {
             $weekdays = $this->LoadWeekdays();
             if ($weekdays === null) {
                 // Nicht lesbare gespeicherte Wochentage nicht überschreiben.
@@ -360,7 +397,8 @@ class WakeUpManager extends IPSModuleStrict
             $this->RejectValue('SetAction');
         }
 
-        $this->UpdateSelection(static function (array $selection) use ($id, $active, $offset): array {
+        $this->UpdateSelection(static function (array $selection) use ($id, $active, $offset): array
+        {
             $entry = $selection[$id] ?? ['Active' => false, 'Offset' => 0];
             if ($active !== null) {
                 $entry['Active'] = $active;
@@ -376,7 +414,8 @@ class WakeUpManager extends IPSModuleStrict
     // Ändert die Auswahl unter der Sperre; eine nicht lesbare gespeicherte Auswahl wird nicht überschrieben.
     private function UpdateSelection(callable $change): void
     {
-        $this->UpdateSettings(function () use ($change): void {
+        $this->UpdateSettings(function () use ($change): void
+        {
             $selection = $this->LoadSelection();
             if ($selection === null) {
                 throw new Exception($this->Translate('The action selection cannot be read'));
@@ -436,29 +475,6 @@ class WakeUpManager extends IPSModuleStrict
             }
         }
         return ['hour' => $time['hour'], 'minute' => $time['minute'], 'second' => $time['second']];
-    }
-
-    public function GetConfigurationForm(): string
-    {
-        $content = file_get_contents(__DIR__ . '/form.json');
-        $form = is_string($content) ? json_decode($content, true) : null;
-        if (!is_array($form) || !isset($form['actions']) || !is_array($form['actions'])) {
-            $this->SendDebug('Form', 'form.json cannot be read', 0);
-            return is_string($content) ? $content : '{}';
-        }
-
-        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
-        $context = [
-            'actionInstance' => $actionInstance,
-            'catalog'        => $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null,
-            'selection'      => $this->LoadSelection(),
-            'time'           => $this->ParseTime($this->ReadAttributeString('WakeUpTime')),
-            'weekendTime'    => $this->GetWeekendTime(),
-            'weekdays'       => $this->LoadWeekdays()
-        ];
-        $this->FillFormElements($form['actions'], $context);
-
-        return json_encode($form);
     }
 
     // Setzt die gespeicherten Einstellungen in die Elemente des Bereichs "actions" (inkl. verschachtelter Elemente).
@@ -553,18 +569,6 @@ class WakeUpManager extends IPSModuleStrict
         }
         ksort($weekdays);
         return $weekdays;
-    }
-
-    public function GetVisualizationTile(): string
-    {
-        $html = file_get_contents(__DIR__ . '/module.html');
-        if ($html === false) {
-            $this->SendDebug('Tile', 'module.html cannot be read', 0);
-            return '';
-        }
-        // Vollständiger Initialzustand; handleMessage ist erst nach module.html definiert. json_encode maskiert
-        // "/", ein "</script>" in Aktionsnamen kann den Skriptblock deshalb nicht beenden.
-        return $html . '<script>handleMessage(' . json_encode($this->GetTileState()) . ');</script>';
     }
 
     private function UpdateTile(): void
@@ -907,7 +911,8 @@ class WakeUpManager extends IPSModuleStrict
     private function CallCatalog(callable $call): mixed
     {
         $error = null;
-        set_error_handler(static function (int $number, string $message) use (&$error): bool {
+        set_error_handler(static function (int $number, string $message) use (&$error): bool
+        {
             $error = $message;
             return true;
         });
@@ -1049,7 +1054,8 @@ class WakeUpManager extends IPSModuleStrict
                 }
             }
         }
-        usort($events, static function (array $a, array $b): int {
+        usort($events, static function (array $a, array $b): int
+        {
             return [$a['time'], $a['order']] <=> [$b['time'], $b['order']];
         });
         return $events;
