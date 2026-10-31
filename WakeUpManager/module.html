@@ -33,20 +33,20 @@
         container-type: size;
         /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
            und Raum für Icon und Tag. */
-        --time-size: min(23cqw, 27cqh);
+        --time-size: min(31cqw, 36cqh);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        padding: 4px;
-        gap: 4px;
+        gap: 3px;
     }
     .compact .icon {
-        font-size: min(12cqw, 13cqh);
+        font-size: min(13cqw, 14cqh);
+        line-height: 1;
         color: var(--accent-color);
         cursor: pointer;
-        padding: 4px;
+        padding: 2px;
     }
     .compact .icon.off {
         color: inherit;
@@ -178,7 +178,8 @@
         }
     }
     .compact .day {
-        font-size: min(10cqw, 12cqh);
+        font-size: min(11cqw, 14cqh);
+        line-height: 1.2;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
