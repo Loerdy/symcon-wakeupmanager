@@ -380,6 +380,10 @@ class WakeUpManager extends IPSModuleStrict
                     $this->Respond($source, $e->getMessage(), true);
                     break;
                 }
+                // Geänderte Vorlagenliste an offene Kacheln senden (Laden aktualisiert die Kachel bereits über Process()).
+                if ($Ident !== 'LoadTemplate') {
+                    $this->UpdateTile();
+                }
                 if ($source === 'console') {
                     // Erfolg zeigt das neu geladene Formular (Auswahlliste, geladene Einstellungen); ein Popup ginge dabei verloren.
                     $this->ReloadForm();
@@ -805,7 +809,7 @@ class WakeUpManager extends IPSModuleStrict
                 $element['options'] = array_map(static fn (string $template): array => ['caption' => $template, 'value' => $template], $context['templates']);
                 $element['value'] = $context['templates'][0] ?? '';
                 $element['enabled'] = count($context['templates']) > 0;
-            } elseif ($name === 'TemplateLoad' || $name === 'TemplateDelete') {
+            } elseif (in_array($name, ['TemplateLoad', 'TemplateOverwrite', 'TemplateDelete'], true)) {
                 $element['enabled'] = count($context['templates']) > 0;
             } elseif ($name === 'ActionsHint') {
                 if ($context['actionInstance'] <= 0) {

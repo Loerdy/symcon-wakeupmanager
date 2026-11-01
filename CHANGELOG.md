@@ -8,7 +8,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ### Hinzugefügt
 
-- **Vorlagen je Wecker**, z. B. für Früh- und Spätschicht: Weckzeiten, Wochentage und Aktionsauswahl unter einem Namen speichern, laden und löschen – in der Konsole und in der großen Ansicht der Kachel, auch per `IPS_RequestAction` (`SaveTemplate`, `LoadTemplate`, `DeleteTemplate`). Aktiv-Schalter und Darstellung bleiben beim Laden unverändert.
+- **Vorlagen je Wecker**, z. B. für Früh- und Spätschicht: Weckzeiten, Wochentage und Aktionsauswahl unter einem Namen speichern, laden, mit den aktuellen Einstellungen überschreiben und löschen – in der Konsole und in der großen Ansicht der Kachel, auch per `IPS_RequestAction` (`SaveTemplate`, `LoadTemplate`, `DeleteTemplate`). Aktiv-Schalter und Darstellung bleiben beim Laden unverändert.
 
 ### Behoben
 

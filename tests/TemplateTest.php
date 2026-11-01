@@ -152,6 +152,29 @@ class TemplateTest extends WakeUpManagerTestCase
         $this->assertSame(['Early shift'], $this->templateNames());
     }
 
+    public function testTileReceivesUpdatedTemplateListAfterSaveAndDelete(): void
+    {
+        $this->manager->RequestAction('SaveTemplate', json_encode(['Name' => 'Early shift', 'Source' => 'tile']));
+        $this->assertSame(['Early shift'], $this->lastTileState()['templates']);
+
+        $this->manager->RequestAction('DeleteTemplate', json_encode(['Name' => 'Early shift', 'Source' => 'tile']));
+        $this->assertSame([], $this->lastTileState()['templates']);
+    }
+
+    public function testOverwriteSelectedTemplateFromConsole(): void
+    {
+        $this->manager->RequestAction('SaveTemplate', 'Early shift');
+        $this->writeAttributes($this->manager, $this->late());
+
+        // Button "Überschreiben" sendet den in der Auswahlliste gewählten Namen
+        $this->manager->RequestAction('SaveTemplate', json_encode(['Name' => 'Early shift', 'Source' => 'console']));
+
+        $this->assertSame(['Early shift'], $this->templateNames());
+        $this->writeAttributes($this->manager, $this->early());
+        $this->manager->RequestAction('LoadTemplate', 'Early shift');
+        $this->assertSame(json_encode($this->late()['WakeUpTime']), $this->attribute('WakeUpTime'));
+    }
+
     public function testTemplatesAreOfferedInTileAndConsole(): void
     {
         $this->manager->RequestAction('SaveTemplate', 'Early shift');
@@ -208,6 +231,19 @@ class TemplateTest extends WakeUpManagerTestCase
             }
         }
         return $notice;
+    }
+
+    // Letzter vollständiger Kachel-Zustand (UpdateVisualizationValue ohne "notice")
+    private function lastTileState(): ?array
+    {
+        $state = null;
+        foreach ($this->manager->getMessages() as $message) {
+            $data = $message['Message'] === 10541 ? json_decode($message['Data'][0], true) : null;
+            if (is_array($data) && array_key_exists('templates', $data)) {
+                $state = $data;
+            }
+        }
+        return $state;
     }
 
     private function findElement(array $elements, string $name): ?array

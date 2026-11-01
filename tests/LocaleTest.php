@@ -60,6 +60,9 @@ class LocaleTest extends TestCase
             $html = file_get_contents($folder . '/module.html');
             preg_match_all("/translate\\('([^']+)'\\)/", $html, $matches);
             $texts = [...$texts, ...$matches[1]];
+            // Beschriftungen der Schaltflächen mit Rückfrage (confirmButton(id, label, question, ident))
+            preg_match_all("/confirmButton\\('[^']+', '([^']+)', '([^']+)'/", $html, $matches);
+            $texts = [...$texts, ...$matches[1], ...$matches[2]];
             foreach (self::TILE_TEXT_CONSTANTS as $name) {
                 $this->assertSame(1, preg_match('/const ' . $name . ' = \{(.*?)\};/s', $html, $block), 'Constant ' . $name . ' not found in module.html');
                 preg_match_all("/: '([^']+)'/", $block[1], $matches);

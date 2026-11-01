@@ -384,9 +384,24 @@
     .templates {
         display: grid;
         gap: 8px;
+        align-content: start;
     }
     .templates select, .templates input[type="text"] {
         min-width: 12em;
+    }
+    /* Ab ausreichender Breite stehen die Vorlagen rechts neben den Einstellungen; Auswahl und Namensfeld
+       dann jeweils in voller Spaltenbreite, die Schaltflächen darunter. */
+    @media (min-width: 760px) {
+        .settings-top {
+            display: grid;
+            grid-template-columns: minmax(0, auto) minmax(220px, 1fr);
+            gap: 0 32px;
+            align-items: start;
+        }
+        .settings-top .templates select, .settings-top .templates input[type="text"] {
+            flex: 1 1 100%;
+            min-width: 0;
+        }
     }
     select option {
         color: var(--content-color, CanvasText);
@@ -423,6 +438,9 @@
         </div>
         <div class="warning" id="warning"></div>
     </div>
+    <!-- Breite Ansicht: Vorlagen rechts neben den Einstellungen, schmale Ansicht (Handy): darunter -->
+    <div class="settings-top">
+    <div class="settings-main">
     <div class="section">
         <label>
             <input type="checkbox" id="separate">
@@ -447,11 +465,13 @@
         <div class="caption">Display of the wake-up time</div>
         <div class="choices" id="styles"></div>
     </div>
+    </div>
     <div class="section templates">
         <div class="caption">Templates</div>
         <div class="block">
             <select id="templateSelect"></select>
             <button type="button" class="action" id="templateLoad">Load</button>
+            <button type="button" class="action" id="templateOverwrite">Overwrite</button>
             <button type="button" class="action" id="templateDelete">Delete</button>
         </div>
         <div class="block">
@@ -459,6 +479,7 @@
             <button type="button" class="action" id="templateSave">Save as template</button>
         </div>
         <span class="notice" id="templateNotice" aria-live="polite"></span>
+    </div>
     </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
@@ -795,7 +816,7 @@
                 }
             }
         }
-        for (const id of ['templateSelect', 'templateLoad', 'templateDelete']) {
+        for (const id of ['templateSelect', 'templateLoad', 'templateOverwrite', 'templateDelete']) {
             document.getElementById(id).disabled = names.length === 0;
         }
         document.getElementById('templateName').placeholder = translate('Name of the new template');
@@ -949,24 +970,29 @@
         sendTemplate('LoadTemplate', document.getElementById('templateSelect').value);
     });
 
-    // Löschen in zwei Schritten: erster Klick fragt nach, zweiter Klick innerhalb von 4 Sekunden löscht.
-    let deleteTimer = null;
-    document.getElementById('templateDelete').addEventListener('click', function (event) {
-        const button = event.currentTarget;
-        if (button.dataset.armed === '1') {
-            clearTimeout(deleteTimer);
-            button.dataset.armed = '';
-            button.textContent = translate('Delete');
-            sendTemplate('DeleteTemplate', document.getElementById('templateSelect').value);
-            return;
-        }
-        button.dataset.armed = '1';
-        button.textContent = translate('Really delete?');
-        deleteTimer = setTimeout(function () {
-            button.dataset.armed = '';
-            button.textContent = translate('Delete');
-        }, 4000);
-    });
+    // Überschreiben und Löschen in zwei Schritten: erster Klick fragt nach, zweiter Klick innerhalb von 4 Sekunden führt aus.
+    function confirmButton(id, label, question, ident) {
+        let timer = null;
+        document.getElementById(id).addEventListener('click', function (event) {
+            const button = event.currentTarget;
+            clearTimeout(timer);
+            if (button.dataset.armed === '1') {
+                button.dataset.armed = '';
+                button.textContent = translate(label);
+                sendTemplate(ident, document.getElementById('templateSelect').value);
+                return;
+            }
+            button.dataset.armed = '1';
+            button.textContent = translate(question);
+            timer = setTimeout(function () {
+                button.dataset.armed = '';
+                button.textContent = translate(label);
+            }, 4000);
+        });
+    }
+
+    confirmButton('templateOverwrite', 'Overwrite', 'Really overwrite?', 'SaveTemplate');
+    confirmButton('templateDelete', 'Delete', 'Really delete?', 'DeleteTemplate');
 
     document.getElementById('templateSave').addEventListener('click', function () {
         const name = document.getElementById('templateName').value.trim();

@@ -133,6 +133,13 @@
                 },
                 {
                     "type": "Button",
+                    "name": "TemplateOverwrite",
+                    "caption": "Overwrite template",
+                    "confirm": "Overwrite the selected template with the current settings?",
+                    "onClick": "IPS_RequestAction($id, 'SaveTemplate', json_encode(['Name' => $TemplateSelect, 'Source' => 'console']));"
+                },
+                {
+                    "type": "Button",
                     "name": "TemplateDelete",
                     "caption": "Delete template",
                     "confirm": "Delete the selected template?",
