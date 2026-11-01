@@ -342,11 +342,7 @@ class WakeUpManager extends IPSModuleStrict
                 if (!is_string($Value) || $Value === '') {
                     $this->RejectValue($Ident);
                 }
-                $this->UpdateSelection(static function (array $selection) use ($Value): array
-                {
-                    unset($selection[$Value]);
-                    return $selection;
-                });
+                $this->UpdateSelection($Value, null);
                 break;
             default:
                 throw new Exception('Invalid Ident');
@@ -383,12 +379,12 @@ class WakeUpManager extends IPSModuleStrict
         if ($active !== null && !is_bool($active)) {
             $this->RejectValue('SetAction');
         }
-        $offset = $value['Offset'] ?? null;
-        if (is_float($offset) && floor($offset) === $offset) {
-            $offset = (int) $offset;
-        }
-        if ($offset !== null && (!is_int($offset) || abs($offset) > self::MAX_OFFSET)) {
-            $this->RejectValue('SetAction');
+        $offset = null;
+        if (isset($value['Offset'])) {
+            $offset = $this->NormalizeOffset($value['Offset']);
+            if ($offset === null) {
+                $this->RejectValue('SetAction');
+            }
         }
         // Nur Aktionen der gewählten zentralen Instanz dürfen ausgewählt werden.
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
@@ -397,35 +393,77 @@ class WakeUpManager extends IPSModuleStrict
             $this->RejectValue('SetAction');
         }
 
-        $this->UpdateSelection(static function (array $selection) use ($id, $active, $offset): array
+        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset]);
+    }
+
+    // Ändert unter der Sperre nur die Zeile(n) der Aktion $id in den gespeicherten Rohdaten; alle anderen Zeilen,
+    // auch beschädigte oder unbekannte, bleiben unverändert. $change: neue Werte (null = beibehalten) oder null = löschen.
+    // Eine nicht lesbare Auswahl wird nicht überschrieben; geschrieben wird nur bei einer tatsächlichen Änderung.
+    private function UpdateSelection(string $id, ?array $change): void
+    {
+        $this->UpdateSettings(function () use ($id, $change): void
         {
-            $entry = $selection[$id] ?? ['Active' => false, 'Offset' => 0];
-            if ($active !== null) {
-                $entry['Active'] = $active;
+            // Als Objekte dekodieren, damit leere JSON-Objekte nicht als Listen zurückgeschrieben werden.
+            $rows = json_decode($this->ReadAttributeString('Selection'));
+            if (!is_array($rows)) {
+                $this->SendDebug('Settings', 'Action selection cannot be read, not changed', 0);
+                throw new Exception($this->Translate('The action selection cannot be read'));
             }
-            if ($offset !== null) {
-                $entry['Offset'] = $offset;
+
+            $changed = false;
+            $found = false;
+            foreach ($rows as $index => $row) {
+                if (!is_object($row) || ($row->ID ?? null) !== $id) {
+                    continue;
+                }
+                if ($change === null) {
+                    unset($rows[$index]);
+                    $changed = true;
+                } elseif (!$found) {
+                    // Doppelte IDs: wie beim Auswerten gilt die erste Zeile, weitere bleiben unverändert.
+                    $found = true;
+                    $changed = $this->ApplySelectionChange($row, $change) || $changed;
+                }
             }
-            $selection[$id] = $entry;
-            return $selection;
+            if ($change !== null && !$found) {
+                $row = (object) ['ID' => $id];
+                $this->ApplySelectionChange($row, $change);
+                $rows[] = $row;
+                $changed = true;
+            }
+            if (!$changed) {
+                return;
+            }
+
+            $encoded = json_encode(array_values($rows));
+            if ($encoded === false) {
+                throw new Exception($this->Translate('The setting could not be saved, please try again'));
+            }
+            $this->WriteAttributeString('Selection', $encoded);
         });
     }
 
-    // Ändert die Auswahl unter der Sperre; eine nicht lesbare gespeicherte Auswahl wird nicht überschrieben.
-    private function UpdateSelection(callable $change): void
+    // Setzt Active und Offset einer Auswahlzeile; ungültige gespeicherte Werte werden dabei durch gültige ersetzt.
+    // Liefert, ob sich die Zeile geändert hat. Weitere Felder der Zeile bleiben erhalten.
+    private function ApplySelectionChange(object $row, array $change): bool
     {
-        $this->UpdateSettings(function () use ($change): void
-        {
-            $selection = $this->LoadSelection();
-            if ($selection === null) {
-                throw new Exception($this->Translate('The action selection cannot be read'));
-            }
-            $rows = [];
-            foreach ($change($selection) as $id => $entry) {
-                $rows[] = ['ID' => (string) $id, 'Active' => $entry['Active'], 'Offset' => $entry['Offset']];
-            }
-            $this->WriteAttributeString('Selection', json_encode($rows));
-        });
+        $active = $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false);
+        $offset = $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0;
+        if (($row->Active ?? null) === $active && ($row->Offset ?? null) === $offset) {
+            return false;
+        }
+        $row->Active = $active;
+        $row->Offset = $offset;
+        return true;
+    }
+
+    // Zeitversatz in Minuten als int oder null, wenn ungültig (JSON kann ganze Zahlen auch als Float liefern).
+    private function NormalizeOffset(mixed $offset): ?int
+    {
+        if (is_float($offset) && floor($offset) === $offset) {
+            $offset = (int) $offset;
+        }
+        return is_int($offset) && abs($offset) <= self::MAX_OFFSET ? $offset : null;
     }
 
     // Schreibt Einstellungen unter derselben Sperre wie die Weckroutine und berechnet danach den nächsten Zeitpunkt neu.
@@ -866,11 +904,8 @@ class WakeUpManager extends IPSModuleStrict
                 // Doppelte IDs entstehen durch das Modul nicht; falls doch, gilt der erste Eintrag.
                 continue;
             }
-            $offset = $row['Offset'] ?? 0;
-            if (is_float($offset) && floor($offset) === $offset) {
-                $offset = (int) $offset;
-            }
-            if (!is_int($offset) || abs($offset) > self::MAX_OFFSET) {
+            $offset = $this->NormalizeOffset($row['Offset'] ?? 0);
+            if ($offset === null) {
                 $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid offset', 0);
                 continue;
             }

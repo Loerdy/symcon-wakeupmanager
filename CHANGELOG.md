@@ -15,6 +15,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Kachel (kompakte Ansicht): Unterlängen im Wochentag (z. B. das „g“ in „Morgen“) werden nicht mehr abgeschnitten.
 - Kachel: Die Tagesangabe („Heute“, „Morgen“, Wochentag) wird um Mitternacht aktualisiert und zeigt nach Mitternacht nicht mehr den Stand vom Vortag.
 - Eine Einstellungsänderung holt keine Zeitpunkte mehr nach, die erst durch die Änderung in der Vergangenheit liegen. Bisher hing es von der letzten Verarbeitung ab, ob eine gerade vergangene Weckzeit nachgeholt wurde; nach dem Wecken konnte ein Umstellen auf eine frühere Uhrzeit erneut wecken.
+- Änderungen an der Aktionsauswahl (Konsole, Kachel, `IPS_RequestAction`) betreffen nur noch die geänderte Aktion. Bisher gingen dabei beschädigte oder nicht zuordenbare gespeicherte Einträge verloren. Unveränderte Werte werden nicht mehr neu gespeichert.
 - War die Weckroutine beim Auslösen des Timers kurzzeitig belegt, versucht der Wecker es nach einer Sekunde erneut. Bisher wartete er auf den nächsten geplanten Zeitpunkt, und fällige Aktionen konnten ausfallen.
 
 ## [1.0.0] - 2026-10-31
