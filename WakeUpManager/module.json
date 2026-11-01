@@ -3,7 +3,10 @@
     "name": "WakeUpManager",
     "type": 3,
     "vendor": "WakeUpManager",
-    "aliases": [],
+    "aliases": [
+        "Wecker",
+        "Alarm Clock"
+    ],
     "url": "https://github.com/Loerdy/symcon-wakeupmanager",
     "parentRequirements": [],
     "childRequirements": [],

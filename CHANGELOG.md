@@ -6,6 +6,33 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-01
+
+Beta.
+
+### Hinzugefügt
+
+- Button „Ausgewählte Aktionen jetzt ausführen“ in der Konsole und in der großen Ansicht der Kachel: startet die ausgewählten Aktionen sofort, ohne das reguläre Wecken zu beeinflussen, und meldet, wie viele Aktionen gestartet wurden bzw. warum keine. Auch per `IPS_RequestAction($id, 'RunActions', true)`.
+
+### Geändert
+
+- Kachel (kompakte Ansicht): Die Abstände zwischen Icon, Weckzeit und Wochentag wachsen jetzt mit der Kachelgröße. Das Icon für den Aktiv-Schalter ist größer und reagiert beim Darüberfahren mit der Maus, damit es als Schalter erkennbar ist. Der Inhalt sitzt etwas höher.
+- Kachel: Das Aktiv-Icon lässt sich per Tastatur (Tab, Enter, Leertaste) bedienen und zeigt beim Fokus einen Rahmen. Der Tooltip wird zuverlässig übersetzt.
+- „Instanz hinzufügen“: Die Module sind auch unter „Wecker“ bzw. „Weckaktionen“ (englisch „Alarm Clock“ bzw. „Wake-up Actions“) zu finden.
+- Kachel: Fallback-Farben für die Design-Variablen der Visualisierung, damit die Kachel lesbar bleibt, falls eine künftige Version eine Variable nicht mehr setzt. Das Aussehen ändert sich nicht.
+- README: Installation Schritt für Schritt über das Module Control; der Hinweis auf den Module Store entfällt bis zur Veröffentlichung dort.
+- Fehler wie nicht verfügbare zentrale Aktionen oder unlesbare Einstellungen erscheinen nur noch einmal beim Wechsel in den Fehlerstatus im Meldungsfenster, nicht bei jeder Bedienung.
+
+### Behoben
+
+- Kachel (kompakte Ansicht): Unterlängen im Wochentag (z. B. das „g“ in „Morgen“) werden nicht mehr abgeschnitten.
+- Kachel: Die Tagesangabe („Heute“, „Morgen“, Wochentag) wird um Mitternacht aktualisiert und zeigt nach Mitternacht nicht mehr den Stand vom Vortag.
+- Eine Einstellungsänderung holt keine Zeitpunkte mehr nach, die erst durch die Änderung in der Vergangenheit liegen. Bisher hing es von der letzten Verarbeitung ab, ob eine gerade vergangene Weckzeit nachgeholt wurde; nach dem Wecken konnte ein Umstellen auf eine frühere Uhrzeit erneut wecken.
+- Änderungen an der Aktionsauswahl (Konsole, Kachel, `IPS_RequestAction`) betreffen nur noch die geänderte Aktion. Bisher gingen dabei beschädigte oder nicht zuordenbare gespeicherte Einträge verloren. Unveränderte Werte werden nicht mehr neu gespeichert.
+- Wird die Weckzeit verschoben, nachdem Aktionen für diesen Tag bereits gelaufen sind (z. B. die vorgeheizte Heizung), werden sie nicht erneut ausgeführt. Bisher galt die verschobene Weckzeit als neuer Weckvorgang.
+- Das Konfigurationsformular öffnet auch, wenn gespeicherte Texte ungültige Zeichen (ungültiges UTF-8) enthalten.
+- War die Weckroutine beim Auslösen des Timers kurzzeitig belegt, versucht der Wecker es nach einer Sekunde erneut. Bisher wartete er auf den nächsten geplanten Zeitpunkt, und fällige Aktionen konnten ausfallen.
+
 ## [1.0.0] - 2026-10-31
 
 Erstes Release (Beta).
@@ -23,5 +50,6 @@ Erstes Release (Beta).
 - Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
 - Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
 
-[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Loerdy/symcon-wakeupmanager/releases/tag/v1.0.0

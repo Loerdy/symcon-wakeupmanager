@@ -73,7 +73,7 @@ class WakeUpManager extends IPSModuleStrict
 
         // Ende des zuletzt abgearbeiteten Zeitfensters (Unix-Zeitstempel); -1 = Wecker war deaktiviert, nichts nachholen.
         $this->RegisterAttributeInteger('LastProcessed', -1);
-        // Bereits ausgeführte Aktionen je Weckvorgang: {"<Weckzeitpunkt>": ["<Aktions-ID>", ...]}
+        // Bereits ausgeführte Aktionen je Weckvorgang: {"<Wecktag Y-m-d>": ["<Aktions-ID>", ...]}
         $this->RegisterAttributeString('Executed', '{}');
 
         $this->RegisterTimer(self::TIMER, 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProcessTimer\', 0);');
@@ -213,7 +213,7 @@ class WakeUpManager extends IPSModuleStrict
         ];
         $this->FillFormElements($form['actions'], $context);
 
-        return json_encode($form);
+        return (string) json_encode($form, JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     public function GetVisualizationTile(): string
@@ -342,15 +342,54 @@ class WakeUpManager extends IPSModuleStrict
                 if (!is_string($Value) || $Value === '') {
                     $this->RejectValue($Ident);
                 }
-                $this->UpdateSelection(static function (array $selection) use ($Value): array
-                {
-                    unset($selection[$Value]);
-                    return $selection;
-                });
+                $this->UpdateSelection($Value, null);
+                break;
+            case 'RunActions':
+                ['started' => $started, 'message' => $message] = $this->RunSelectedActions();
+                // Rückmeldung je Aufrufer: Kachel per Hinweis, Konsole per Popup, Skripte per Exception im Fehlerfall.
+                if ($Value === 'tile') {
+                    $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $started === 0]));
+                } elseif ($Value === 'console') {
+                    $this->UpdateFormField('RunResultText', 'caption', $message);
+                    $this->UpdateFormField('RunResult', 'visible', true);
+                } elseif ($started === 0) {
+                    throw new Exception($message);
+                }
                 break;
             default:
                 throw new Exception('Invalid Ident');
         }
+    }
+
+    // Startet die ausgewählten Aktionen sofort (z. B. zum Testen oder wenn man vor dem Wecker wach ist), unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz.
+    // Protokoll, Zeitfenster und Timer der Weckroutine bleiben unverändert, das reguläre Wecken läuft normal.
+    // Liefert die Anzahl gestarteter Aktionen und eine übersetzte Meldung (bei 0 der Grund).
+    private function RunSelectedActions(): array
+    {
+        $selection = $this->LoadSelection();
+        if ($selection === null) {
+            return ['started' => 0, 'message' => $this->Translate('The action selection cannot be read')];
+        }
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+        if ($catalog === null) {
+            return ['started' => 0, 'message' => $this->Translate('The central actions are not available')];
+        }
+
+        // Reihenfolge wie in der Konsole: nach Gruppen und zentraler Liste
+        $started = 0;
+        foreach ($catalog as $id => $definition) {
+            if (!($selection[$id]['Active'] ?? false)) {
+                continue;
+            }
+            $this->SendDebug('Run', 'Starting ' . $definition['name'], 0);
+            $this->RunAction($definition['name'], $definition);
+            $started++;
+        }
+        if ($started === 0) {
+            return ['started' => 0, 'message' => $this->Translate('No actions are selected')];
+        }
+        return ['started' => $started, 'message' => sprintf($this->Translate('%d action(s) started'), $started)];
     }
 
     private function SetWeekday(?array $value): void
@@ -383,12 +422,12 @@ class WakeUpManager extends IPSModuleStrict
         if ($active !== null && !is_bool($active)) {
             $this->RejectValue('SetAction');
         }
-        $offset = $value['Offset'] ?? null;
-        if (is_float($offset) && floor($offset) === $offset) {
-            $offset = (int) $offset;
-        }
-        if ($offset !== null && (!is_int($offset) || abs($offset) > self::MAX_OFFSET)) {
-            $this->RejectValue('SetAction');
+        $offset = null;
+        if (isset($value['Offset'])) {
+            $offset = $this->NormalizeOffset($value['Offset']);
+            if ($offset === null) {
+                $this->RejectValue('SetAction');
+            }
         }
         // Nur Aktionen der gewählten zentralen Instanz dürfen ausgewählt werden.
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
@@ -397,35 +436,77 @@ class WakeUpManager extends IPSModuleStrict
             $this->RejectValue('SetAction');
         }
 
-        $this->UpdateSelection(static function (array $selection) use ($id, $active, $offset): array
+        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset]);
+    }
+
+    // Ändert unter der Sperre nur die Zeile(n) der Aktion $id in den gespeicherten Rohdaten; alle anderen Zeilen,
+    // auch beschädigte oder unbekannte, bleiben unverändert. $change: neue Werte (null = beibehalten) oder null = löschen.
+    // Eine nicht lesbare Auswahl wird nicht überschrieben; geschrieben wird nur bei einer tatsächlichen Änderung.
+    private function UpdateSelection(string $id, ?array $change): void
+    {
+        $this->UpdateSettings(function () use ($id, $change): void
         {
-            $entry = $selection[$id] ?? ['Active' => false, 'Offset' => 0];
-            if ($active !== null) {
-                $entry['Active'] = $active;
+            // Als Objekte dekodieren, damit leere JSON-Objekte nicht als Listen zurückgeschrieben werden.
+            $rows = json_decode($this->ReadAttributeString('Selection'));
+            if (!is_array($rows)) {
+                $this->SendDebug('Settings', 'Action selection cannot be read, not changed', 0);
+                throw new Exception($this->Translate('The action selection cannot be read'));
             }
-            if ($offset !== null) {
-                $entry['Offset'] = $offset;
+
+            $changed = false;
+            $found = false;
+            foreach ($rows as $index => $row) {
+                if (!is_object($row) || ($row->ID ?? null) !== $id) {
+                    continue;
+                }
+                if ($change === null) {
+                    unset($rows[$index]);
+                    $changed = true;
+                } elseif (!$found) {
+                    // Doppelte IDs: wie beim Auswerten gilt die erste Zeile, weitere bleiben unverändert.
+                    $found = true;
+                    $changed = $this->ApplySelectionChange($row, $change) || $changed;
+                }
             }
-            $selection[$id] = $entry;
-            return $selection;
+            if ($change !== null && !$found) {
+                $row = (object) ['ID' => $id];
+                $this->ApplySelectionChange($row, $change);
+                $rows[] = $row;
+                $changed = true;
+            }
+            if (!$changed) {
+                return;
+            }
+
+            $encoded = json_encode(array_values($rows));
+            if ($encoded === false) {
+                throw new Exception($this->Translate('The setting could not be saved, please try again'));
+            }
+            $this->WriteAttributeString('Selection', $encoded);
         });
     }
 
-    // Ändert die Auswahl unter der Sperre; eine nicht lesbare gespeicherte Auswahl wird nicht überschrieben.
-    private function UpdateSelection(callable $change): void
+    // Setzt Active und Offset einer Auswahlzeile; ungültige gespeicherte Werte werden dabei durch gültige ersetzt.
+    // Liefert, ob sich die Zeile geändert hat. Weitere Felder der Zeile bleiben erhalten.
+    private function ApplySelectionChange(object $row, array $change): bool
     {
-        $this->UpdateSettings(function () use ($change): void
-        {
-            $selection = $this->LoadSelection();
-            if ($selection === null) {
-                throw new Exception($this->Translate('The action selection cannot be read'));
-            }
-            $rows = [];
-            foreach ($change($selection) as $id => $entry) {
-                $rows[] = ['ID' => (string) $id, 'Active' => $entry['Active'], 'Offset' => $entry['Offset']];
-            }
-            $this->WriteAttributeString('Selection', json_encode($rows));
-        });
+        $active = $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false);
+        $offset = $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0;
+        if (($row->Active ?? null) === $active && ($row->Offset ?? null) === $offset) {
+            return false;
+        }
+        $row->Active = $active;
+        $row->Offset = $offset;
+        return true;
+    }
+
+    // Zeitversatz in Minuten als int oder null, wenn ungültig (JSON kann ganze Zahlen auch als Float liefern).
+    private function NormalizeOffset(mixed $offset): ?int
+    {
+        if (is_float($offset) && floor($offset) === $offset) {
+            $offset = (int) $offset;
+        }
+        return is_int($offset) && abs($offset) <= self::MAX_OFFSET ? $offset : null;
     }
 
     // Schreibt Einstellungen unter derselben Sperre wie die Weckroutine und berechnet danach den nächsten Zeitpunkt neu.
@@ -437,11 +518,30 @@ class WakeUpManager extends IPSModuleStrict
             throw new Exception($this->Translate('The setting could not be saved, please try again'));
         }
         try {
+            // Was nach der bisherigen Einstellung bis jetzt fällig war, wird noch ausgeführt. Danach beginnt das
+            // Zeitfenster jetzt: Zeitpunkte, die erst durch die Änderung in der Vergangenheit liegen, werden nicht nachgeholt.
+            $due = $this->TakeCurrentDueActions();
             $write();
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
-        $this->Process();
+        $this->Process($due);
+    }
+
+    // Fällige Aktionen nach der gespeicherten Einstellung; nur unter der Sperre aufrufen.
+    private function TakeCurrentDueActions(): array
+    {
+        if (!$this->ReadAttributeBoolean('Active')) {
+            return [];
+        }
+        $now = time();
+        $config = $this->LoadConfiguration();
+        $due = $config === null ? [] : $this->TakeDueActions($config, $now);
+        // Auch bei bisher ungültiger Einstellung (z. B. kein Wochentag) ab jetzt rechnen.
+        if ($this->ReadAttributeInteger('LastProcessed') < $now) {
+            $this->WriteAttributeInteger('LastProcessed', $now);
+        }
+        return $due;
     }
 
     private function RejectValue(string $ident): never
@@ -708,20 +808,30 @@ class WakeUpManager extends IPSModuleStrict
         return is_array($list) && array_is_list($list) ? $list : null;
     }
 
-    private function Process(): void
+    // $pending: bereits als ausgeführt gespeicherte Aktionen, die noch auszuführen sind.
+    private function Process(array $pending = []): void
     {
-        $this->ProcessSchedule();
+        $due = [...$pending, ...$this->ProcessSchedule()];
         // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
         $this->UpdateTile();
+
+        // Aktionen außerhalb der Sperre starten (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind
+        // bereits als ausgeführt gespeichert, ein paralleler Aufruf startet sie deshalb nicht erneut.
+        foreach ($due as $action) {
+            $this->RunAction($action['label'], $action['definition']);
+        }
     }
 
-    private function ProcessSchedule(): void
+    // Plant den nächsten Zeitpunkt und liefert die fälligen Aktionen, die der Aufrufer ausführen muss.
+    private function ProcessSchedule(): array
     {
         $semaphore = 'WUM_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($semaphore, 5000)) {
             $this->SendDebug('Process', 'Semaphore could not be entered', 0);
             $this->LogMessage($this->Translate('Wake-up routine could not be processed (semaphore busy)'), KL_WARNING);
-            return;
+            // Der Timer würde sonst erst nach seinem bisherigen, ggf. stundenlangen Intervall erneut auslösen.
+            $this->SetTimerInterval(self::TIMER, 1000);
+            return [];
         }
 
         try {
@@ -731,21 +841,30 @@ class WakeUpManager extends IPSModuleStrict
                 $this->ResetState();
                 $this->SetTimerInterval(self::TIMER, 0);
                 $this->SetStatus(IS_INACTIVE);
-                return;
+                return [];
             }
 
             $config = $this->LoadConfiguration();
             if ($config === null) {
                 $this->SetTimerInterval(self::TIMER, 0);
-                return;
+                return [];
             }
-            $this->SetStatus($config['catalog'] === null && $this->ReadPropertyInteger('ActionInstance') > 0 ? self::STATUS_CATALOG_UNAVAILABLE : IS_ACTIVE);
 
-            $this->ExecuteDueActions($config, $now);
+            $due = $this->TakeDueActions($config, $now);
             $this->ScheduleNext($config, $now);
+            return $due;
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
+    }
+
+    // Meldet einen Fehler nur beim Wechsel in diesen Status im Meldungsfenster, nicht bei jeder Neuberechnung.
+    private function SetErrorStatus(int $status, string $message, int $type): void
+    {
+        if ($this->GetStatus() !== $status) {
+            $this->LogMessage($this->Translate($message), $type);
+        }
+        $this->SetStatus($status);
     }
 
     private function LoadConfiguration(): ?array
@@ -758,8 +877,7 @@ class WakeUpManager extends IPSModuleStrict
 
         $weekdays = $this->LoadWeekdays();
         if ($weekdays === null) {
-            $this->LogMessage($this->Translate('The weekdays of the alarm clock cannot be read'), KL_ERROR);
-            $this->SetStatus(self::STATUS_INVALID_WEEKDAYS);
+            $this->SetErrorStatus(self::STATUS_INVALID_WEEKDAYS, 'The weekdays of the alarm clock cannot be read', KL_ERROR);
             return null;
         }
         if (count($weekdays) === 0) {
@@ -770,8 +888,7 @@ class WakeUpManager extends IPSModuleStrict
 
         $selection = $this->LoadSelection();
         if ($selection === null) {
-            $this->LogMessage($this->Translate('The action selection of the alarm clock cannot be read'), KL_ERROR);
-            $this->SetStatus(self::STATUS_INVALID_ACTIONS);
+            $this->SetErrorStatus(self::STATUS_INVALID_ACTIONS, 'The action selection of the alarm clock cannot be read', KL_ERROR);
             return null;
         }
 
@@ -779,7 +896,9 @@ class WakeUpManager extends IPSModuleStrict
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
         if ($actionInstance > 0 && $catalog === null) {
-            $this->LogMessage($this->Translate('The central actions of the alarm clock are not available'), KL_WARNING);
+            $this->SetErrorStatus(self::STATUS_CATALOG_UNAVAILABLE, 'The central actions of the alarm clock are not available', KL_WARNING);
+        } else {
+            $this->SetStatus(IS_ACTIVE);
         }
 
         $actions = [];
@@ -836,11 +955,8 @@ class WakeUpManager extends IPSModuleStrict
                 // Doppelte IDs entstehen durch das Modul nicht; falls doch, gilt der erste Eintrag.
                 continue;
             }
-            $offset = $row['Offset'] ?? 0;
-            if (is_float($offset) && floor($offset) === $offset) {
-                $offset = (int) $offset;
-            }
-            if (!is_int($offset) || abs($offset) > self::MAX_OFFSET) {
+            $offset = $this->NormalizeOffset($row['Offset'] ?? 0);
+            if ($offset === null) {
                 $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid offset', 0);
                 continue;
             }
@@ -931,7 +1047,8 @@ class WakeUpManager extends IPSModuleStrict
         return $result;
     }
 
-    private function ExecuteDueActions(array $config, int $now): void
+    // Ermittelt die fälligen Aktionen und speichert sie als ausgeführt; ausgeführt werden sie vom Aufrufer.
+    private function TakeDueActions(array $config, int $now): array
     {
         $lastProcessed = $this->ReadAttributeInteger('LastProcessed');
         $windowStart = $lastProcessed < 0 ? $now : max($lastProcessed, $now - self::GRACE_PERIOD);
@@ -954,20 +1071,23 @@ class WakeUpManager extends IPSModuleStrict
         $originalExecuted = $executed;
         $due = [];
         foreach ($events as $event) {
-            $occurrence = (string) $event['occurrence'];
+            // Ein Weckvorgang je Wecktag: Wird die Weckzeit verschoben, laufen bereits ausgeführte Aktionen
+            // (z. B. die vorgeheizte Heizung) an diesem Tag nicht erneut.
+            $day = $this->WakeDay($event['occurrence']);
             $key = $event['action']['key'];
-            if (in_array($key, $executed[$occurrence] ?? [], true)) {
+            if (in_array($key, $executed[$day] ?? [], true)) {
                 $this->SendDebug('Execute', $event['action']['label'] . ' was already executed for this wake-up', 0);
                 continue;
             }
-            $executed[$occurrence][] = $key;
+            $executed[$day][] = $key;
             $due[] = $event;
         }
 
         // Einträge entfernen, deren Weckvorgang keine fälligen Aktionen mehr haben kann.
-        foreach (array_keys($executed) as $occurrence) {
-            if ((int) $occurrence < $now - self::MAX_OFFSET * 60) {
-                unset($executed[$occurrence]);
+        $oldestDay = $this->WakeDay($now - self::MAX_OFFSET * 60);
+        foreach (array_keys($executed) as $day) {
+            if ($day < $oldestDay) {
+                unset($executed[$day]);
             }
         }
 
@@ -979,34 +1099,54 @@ class WakeUpManager extends IPSModuleStrict
             $this->WriteAttributeInteger('LastProcessed', $now);
         }
 
+        $actions = [];
         foreach ($due as $event) {
-            $this->RunAction($event['action'], $config['catalog']);
+            $actions[] = [
+                'label'      => $event['action']['label'],
+                'definition' => $config['catalog'][$event['action']['key']] ?? null
+            ];
         }
+        return $actions;
     }
 
-    private function RunAction(array $action, ?array $catalog): void
+    private function RunAction(string $label, ?array $definition): void
     {
-        $definition = $catalog[$action['key']] ?? null;
         if ($definition === null || $definition['actionID'] === null) {
-            $this->SendDebug('Execute', $action['label'] . ' not executable (central action not available)', 0);
-            $this->LogMessage(sprintf($this->Translate('Wake-up action not executable: %s'), $action['label']), KL_WARNING);
+            $this->SendDebug('Execute', $label . ' not executable (central action not available)', 0);
+            $this->LogMessage(sprintf($this->Translate('Wake-up action not executable: %s'), $label), KL_WARNING);
             return;
         }
 
         try {
             if (IPS_RunAction($definition['actionID'], $definition['parameters'])) {
-                $this->SendDebug('Execute', $action['label'] . ' executed', 0);
+                $this->SendDebug('Execute', $label . ' executed', 0);
             } else {
-                $this->SendDebug('Execute', $action['label'] . ' failed', 0);
-                $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $action['label']), KL_WARNING);
+                $this->SendDebug('Execute', $label . ' failed', 0);
+                $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
             }
         } catch (Throwable $e) {
-            $this->SendDebug('Execute', $action['label'] . ' failed: ' . $e->getMessage(), 0);
-            $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $action['label']), KL_WARNING);
+            $this->SendDebug('Execute', $label . ' failed: ' . $e->getMessage(), 0);
+            $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
         }
     }
 
     private function ScheduleNext(array $config, int $now): void
+    {
+        ['next' => $next, 'wakeUp' => $nextWakeUp] = $this->GetNextPoints($config, $now);
+
+        if ($next === null) {
+            $this->SendDebug('Schedule', 'No next point in time found', 0);
+            $this->SetTimerInterval(self::TIMER, 0);
+            return;
+        }
+
+        $interval = max(100, (int) ceil(($next - microtime(true)) * 1000));
+        $this->SetTimerInterval(self::TIMER, $interval);
+        $this->SendDebug('Schedule', 'Next point in time: ' . $this->FormatTime($next) . ', next wake-up: ' . ($nextWakeUp === null ? '-' : $this->FormatTime($nextWakeUp)), 0);
+    }
+
+    // Nächster fälliger Zeitpunkt für den Timer und nächster Weckzeitpunkt nach $now (jeweils null, wenn keiner ansteht).
+    private function GetNextPoints(array $config, int $now): array
     {
         $range = self::MAX_OFFSET * 60;
         $next = null;
@@ -1026,15 +1166,18 @@ class WakeUpManager extends IPSModuleStrict
             }
         }
 
-        if ($next === null) {
-            $this->SendDebug('Schedule', 'No next point in time found', 0);
-            $this->SetTimerInterval(self::TIMER, 0);
-            return;
+        // Die Kachel zeigt den Tag relativ zu heute ("Heute", "Morgen", Wochentag). Die Anzeige ändert sich zu Beginn
+        // des Vortags ("Morgen") und des Wecktags ("Heute"); zum ersten noch ausstehenden dieser Zeitpunkte neu berechnen.
+        if ($nextWakeUp !== null) {
+            $wakeDay = (new DateTimeImmutable('@' . $nextWakeUp))->setTimezone(new DateTimeZone(date_default_timezone_get()))->setTime(0, 0);
+            foreach ([$wakeDay->modify('-1 day')->getTimestamp(), $wakeDay->getTimestamp()] as $change) {
+                if ($change > $now) {
+                    $next = min($next, $change);
+                    break;
+                }
+            }
         }
-
-        $interval = max(100, (int) ceil(($next - microtime(true)) * 1000));
-        $this->SetTimerInterval(self::TIMER, $interval);
-        $this->SendDebug('Schedule', 'Next point in time: ' . $this->FormatTime($next) . ', next wake-up: ' . ($nextWakeUp === null ? '-' : $this->FormatTime($nextWakeUp)), 0);
+        return ['next' => $next, 'wakeUp' => $nextWakeUp];
     }
 
     // Liefert alle Aktionszeitpunkte im Intervall ($from, $to], sortiert nach Zeit und Listenreihenfolge.
@@ -1093,13 +1236,23 @@ class WakeUpManager extends IPSModuleStrict
             $this->SendDebug('State', 'Execution log cannot be read, rebuilding', 0);
             return [];
         }
+        // Schlüssel ist der Wecktag ("Y-m-d"). Frühere Versionen nutzten den Weckzeitpunkt (Unix-Zeitstempel);
+        // diese Einträge werden dem Wecktag zugeordnet, damit ein Update keinen Weckvorgang doppelt ausführt.
         $result = [];
-        foreach ($executed as $occurrence => $keys) {
-            if (is_array($keys)) {
-                $result[(string) $occurrence] = array_values(array_filter($keys, 'is_string'));
+        foreach ($executed as $key => $actions) {
+            if (!is_array($actions)) {
+                continue;
             }
+            $day = ctype_digit((string) $key) ? $this->WakeDay((int) $key) : (string) $key;
+            $result[$day] = array_values(array_unique([...$result[$day] ?? [], ...array_filter($actions, 'is_string')]));
         }
         return $result;
+    }
+
+    // Lokales Datum eines Weckzeitpunkts; kennzeichnet den Weckvorgang im Ausführungsprotokoll.
+    private function WakeDay(int $timestamp): string
+    {
+        return (new DateTimeImmutable('@' . $timestamp))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d');
     }
 
     // Beim Deaktivieren wird das Zeitfenster verworfen, damit beim Reaktivieren nichts nachgeholt wird.

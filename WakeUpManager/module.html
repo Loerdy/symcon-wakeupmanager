@@ -11,12 +11,14 @@
         flex: 1;
         min-height: 0;
         overflow: hidden;
-        color: var(--content-color);
+        color: var(--content-color, CanvasText);
     }
-    /* Farben ausschließlich aus dem Design der Visualisierung (CSS-Variablen des HTML-SDK) */
-    :root {
-        --line-color: color-mix(in srgb, var(--content-color) 30%, transparent);
-        --soft-line-color: color-mix(in srgb, var(--content-color) 15%, transparent);
+    /* Farben ausschließlich aus dem Design der Visualisierung (CSS-Variablen des HTML-SDK). Die Fallbacks
+       (Systemfarben des Browsers) greifen nur, falls eine künftige Version eine Variable nicht mehr setzt.
+       Am body statt :root berechnet, damit auch erst am body gesetzte Variablen berücksichtigt werden. */
+    body {
+        --line-color: color-mix(in srgb, var(--content-color, CanvasText) 30%, transparent);
+        --soft-line-color: color-mix(in srgb, var(--content-color, CanvasText) 15%, transparent);
     }
     .view {
         box-sizing: border-box;
@@ -33,20 +35,30 @@
         container-type: size;
         /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
            und Raum für Icon und Tag. */
-        --time-size: min(31cqw, 36cqh);
+        --time-size: min(31cqw, 31cqh);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        gap: 3px;
+        /* Abstände wachsen mit der Kachel, damit Icon und Tag nicht am Zeitfeld kleben */
+        gap: min(5cqw, 5cqh);
     }
     .compact .icon {
-        font-size: min(13cqw, 14cqh);
+        font-size: min(18cqw, 19cqh);
         line-height: 1;
-        color: var(--accent-color);
+        color: var(--accent-color, currentColor);
         cursor: pointer;
         padding: 2px;
+        transition: opacity 0.15s;
+    }
+    .compact .icon:hover {
+        opacity: 0.75;
+    }
+    .compact .icon:focus-visible {
+        outline: 2px solid var(--accent-color, currentColor);
+        outline-offset: 2px;
+        border-radius: 6px;
     }
     .compact .icon.off {
         color: inherit;
@@ -85,7 +97,7 @@
         opacity: 0.08;
     }
     .digital .seg.on, .digital .colon {
-        fill: var(--accent-color);
+        fill: var(--accent-color, currentColor);
         opacity: 1;
     }
     .muted.digital .seg.on, .muted.digital .colon {
@@ -110,7 +122,7 @@
         width: 100%;
         height: 50%;
         overflow: hidden;
-        background: color-mix(in srgb, var(--content-color) 12%, var(--card-color));
+        background: color-mix(in srgb, var(--content-color, CanvasText) 12%, var(--card-color, Canvas));
     }
     .flip .top, .flip .leaf, .flip .face.front {
         top: 0;
@@ -122,7 +134,7 @@
     }
     /* Trennfuge zwischen den Hälften */
     .flip .bottom, .flip .face.back {
-        border-top: 0.02em solid var(--card-color);
+        border-top: 0.02em solid var(--card-color, Canvas);
     }
     .flip .half span, .flip .face span {
         position: absolute;
@@ -180,6 +192,10 @@
     .compact .day {
         font-size: min(11cqw, 14cqh);
         line-height: 1.2;
+        /* Platz für Unterlängen (g, y), die sonst durch overflow: hidden abgeschnitten werden */
+        padding-bottom: 0.2em;
+        /* Hebt den Inhalt leicht an, damit er unter der Titelzeile optisch mittig wirkt */
+        margin-bottom: 5cqh;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -239,7 +255,7 @@
         width: 1.2em;
         height: 1.2em;
         margin: 0;
-        accent-color: var(--accent-color);
+        accent-color: var(--accent-color, currentColor);
     }
     input[type="time"], input[type="number"] {
         font: inherit;
@@ -251,7 +267,7 @@
         outline: none;
     }
     input[type="time"]:focus, input[type="number"]:focus {
-        border-color: var(--accent-color);
+        border-color: var(--accent-color, currentColor);
     }
     /* Browser-Pfeile passen farblich nicht zum Design; Eingabe per Tastatur */
     input[type="number"] {
@@ -301,8 +317,8 @@
         padding: 6px 12px;
     }
     .days button.on, .choices button.on {
-        border-color: var(--accent-color);
-        background: color-mix(in srgb, var(--accent-color) 25%, transparent);
+        border-color: var(--accent-color, currentColor);
+        background: color-mix(in srgb, var(--accent-color, currentColor) 25%, transparent);
         font-weight: 600;
         opacity: 1;
     }
@@ -338,11 +354,39 @@
         opacity: 0.7;
         font-variant-numeric: tabular-nums;
     }
+    .run-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px 12px;
+        flex-wrap: wrap;
+    }
+    .run-actions[hidden] {
+        display: none;
+    }
+    .run-actions button {
+        font: inherit;
+        color: inherit;
+        padding: 6px 12px;
+        border: 1px solid var(--line-color);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+    }
+    .run-actions button:hover, .run-actions button:focus-visible {
+        border-color: var(--accent-color, currentColor);
+    }
+    .notice {
+        opacity: 0.8;
+    }
+    .notice.error {
+        opacity: 1;
+        font-weight: 600;
+    }
 </style>
 
 <div class="view compact">
     <!-- icons.js ersetzt <i>-Icons durch SVG; Klick und Farbe deshalb am festen Container, das Icon wird darin neu eingesetzt. -->
-    <div class="icon hidden" id="icon" role="button" title="Switch alarm clock on/off"></div>
+    <div class="icon hidden" id="icon" role="button" tabindex="0" aria-pressed="false" title="Switch alarm clock on/off"></div>
     <div class="time" id="compactTime">--:--</div>
     <div class="day" id="compactDay"></div>
 </div>
@@ -384,6 +428,10 @@
     </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
+    <div class="section run-actions" id="runBlock" hidden>
+        <button type="button" id="runButton">Execute selected actions now</button>
+        <span class="notice" id="runNotice" aria-live="polite"></span>
+    </div>
 </div>
 
 <script>
@@ -436,8 +484,26 @@
     let deferred = false;
 
     function handleMessage(data) {
-        state = JSON.parse(data);
+        const message = JSON.parse(data);
+        // Ergebnis von "Ausgewählte Aktionen jetzt ausführen"; der übrige Zustand bleibt unverändert.
+        if (typeof message.notice === 'string') {
+            showNotice(message.notice, message.error === true);
+            return;
+        }
+        state = message;
         render();
+    }
+
+    let noticeTimer = null;
+
+    function showNotice(text, error) {
+        const notice = document.getElementById('runNotice');
+        notice.textContent = text;
+        notice.classList.toggle('error', error);
+        clearTimeout(noticeTimer);
+        noticeTimer = setTimeout(function () {
+            notice.textContent = '';
+        }, 6000);
     }
 
     function send(ident, value) {
@@ -533,6 +599,7 @@
         }
         document.getElementById('hint').textContent = state.hint ? translate(HINTS[state.hint])
             : (state.groups.length === 0 ? translate('No central actions available.') : '');
+        document.getElementById('runBlock').hidden = state.groups.length === 0;
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
@@ -669,6 +736,10 @@
         const name = typeof state.icon === 'string' && /^[a-z0-9-]+$/.test(state.icon) ? state.icon : '';
         container.classList.toggle('hidden', name === '');
         container.classList.toggle('off', !state.active);
+        container.setAttribute('aria-pressed', String(state.active));
+        // Ob translateHTML auch Attribute übersetzt, ist nicht dokumentiert; deshalb hier ausdrücklich.
+        container.title = translate('Switch alarm clock on/off');
+        container.setAttribute('aria-label', container.title);
         if (name !== iconName) {
             iconName = name;
             container.replaceChildren();
@@ -770,10 +841,23 @@
         return row;
     }
 
-    document.getElementById('icon').addEventListener('click', function () {
+    function toggleActive() {
         if (state !== null) {
             send('SetActive', !state.active);
         }
+    }
+
+    document.getElementById('icon').addEventListener('click', toggleActive);
+    // Bedienung per Tastatur wie bei einer Schaltfläche
+    document.getElementById('icon').addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleActive();
+        }
+    });
+
+    document.getElementById('runButton').addEventListener('click', function () {
+        requestAction('RunActions', 'tile');
     });
 
     document.getElementById('active').addEventListener('change', function (event) {
