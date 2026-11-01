@@ -396,13 +396,15 @@
         flex: 1 1 auto;
         min-width: 0;
     }
-    /* Ab ausreichender Breite stehen die Vorlagen als schmale Spalte direkt rechts neben den Einstellungen
-       (nicht über die ganze Restbreite), abgesetzt durch eine feine Linie. */
-    @media (min-width: 760px) {
+    /* Ab ausreichender Breite stehen die Vorlagen als schmale Spalte rechts neben den Einstellungen, abgesetzt
+       durch eine feine Linie. Die linke Spalte richtet sich nach der Kachelbreite, nicht nach ihrem Inhalt, damit
+       die Vorlagen nicht springen, wenn sich z. B. die Zahl der Wochentage je Zeile ändert. Ab 840 px passen die
+       sieben Wochentage links in eine Zeile; die Begrenzung auf 900 px hält breite Ansichten kompakt. */
+    @media (min-width: 840px) {
         .settings-top {
             display: grid;
-            grid-template-columns: max-content minmax(240px, 360px);
-            justify-content: start;
+            grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+            max-width: 900px;
             gap: 0 32px;
             align-items: start;
         }
