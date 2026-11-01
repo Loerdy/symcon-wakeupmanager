@@ -6,6 +6,15 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-01
+
+Beta.
+
+### Behoben
+
+- Kachel (Safari, z. B. iPhone/iPad): Der Button „Speichern“ der Vorlagen wurde abgeschnitten, und die Vorlagen-Spalte ragte über den rechten Rand. Die Auswahlliste steht jetzt immer in eigener Zeile.
+- Kachel: Ohne gespeicherte Vorlagen zeigt die Auswahlliste „Keine Vorlagen gespeichert“ statt eines leeren Feldes.
+
 ## [1.3.0] - 2026-11-01
 
 Beta.
@@ -75,7 +84,8 @@ Erstes Release (Beta).
 - Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
 - Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
 
-[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.0.0...v1.1.0
