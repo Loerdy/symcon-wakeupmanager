@@ -15,6 +15,8 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Kachel (kompakte Ansicht): Die Abstände zwischen Icon, Weckzeit und Wochentag wachsen jetzt mit der Kachelgröße. Das Icon für den Aktiv-Schalter ist größer und reagiert beim Darüberfahren mit der Maus, damit es als Schalter erkennbar ist. Der Inhalt sitzt etwas höher.
 - Kachel: Das Aktiv-Icon lässt sich per Tastatur (Tab, Enter, Leertaste) bedienen und zeigt beim Fokus einen Rahmen. Der Tooltip wird zuverlässig übersetzt.
 - „Instanz hinzufügen“: Die Module sind auch unter „Wecker“ bzw. „Weckaktionen“ (englisch „Alarm Clock“ bzw. „Wake-up Actions“) zu finden.
+- Kachel: Fallback-Farben für die Design-Variablen der Visualisierung, damit die Kachel lesbar bleibt, falls eine künftige Version eine Variable nicht mehr setzt. Das Aussehen ändert sich nicht.
+- README: Installation Schritt für Schritt über das Module Control; der Hinweis auf den Module Store entfällt bis zur Veröffentlichung dort.
 - Fehler wie nicht verfügbare zentrale Aktionen oder unlesbare Einstellungen erscheinen nur noch einmal beim Wechsel in den Fehlerstatus im Meldungsfenster, nicht bei jeder Bedienung.
 
 ### Behoben

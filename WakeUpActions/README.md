@@ -24,7 +24,7 @@ Zentrale Liste der Aktionen, aus denen die Wecker ([WakeUpManager](../WakeUpMana
 
 ## 3. Installation
 
-- Library über den Module Store oder im Module Control mit `https://github.com/Loerdy/symcon-wakeupmanager` hinzufügen.
+- Library im Module Control (Konsole → Kern Instanzen → **Modules** → **+**) mit `https://github.com/Loerdy/symcon-wakeupmanager` hinzufügen, siehe [Installation](../README.md#installation).
 - Unter „Instanz hinzufügen“ das Modul **WakeUpActions** (Hersteller „WakeUpManager“) anlegen.
 
 ## 4. Konfiguration

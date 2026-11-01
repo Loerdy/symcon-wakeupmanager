@@ -28,7 +28,7 @@ Ein Wecker pro Instanz. Zur Weckzeit werden die ausgewählten Aktionen aus [Wake
 
 ## 3. Installation
 
-- Library über den Module Store oder im Module Control mit `https://github.com/Loerdy/symcon-wakeupmanager` hinzufügen.
+- Library im Module Control (Konsole → Kern Instanzen → **Modules** → **+**) mit `https://github.com/Loerdy/symcon-wakeupmanager` hinzufügen, siehe [Installation](../README.md#installation).
 - Unter „Instanz hinzufügen“ das Modul **WakeUpManager** (Hersteller „WakeUpManager“) anlegen, eine Instanz pro Wecker.
 
 ## 4. Konfiguration

@@ -19,14 +19,19 @@ Die Module sind auf Deutsch und Englisch verfügbar (Sprache der Konsole bzw. Vi
 
 ## Installation
 
-Über den Module Store (Suche nach „WakeUpManager“) oder im Module Control mit der Repository-URL:
+Die Library wird über das Module Control von IP-Symcon installiert:
 
-```
-https://github.com/Loerdy/symcon-wakeupmanager
-```
+1. In der Konsole in der logischen Baumansicht unter **Kern Instanzen** die Instanz **Modules** öffnen.
+2. Auf **+** klicken und die Repository-URL eintragen:
 
-1. Eine Instanz **WakeUpActions** anlegen und dort die Aktionen eintragen.
-2. Für jeden Wecker eine Instanz **WakeUpManager** anlegen und darin die WakeUpActions-Instanz auswählen.
+   ```
+   https://github.com/Loerdy/symcon-wakeupmanager
+   ```
+
+3. Eine Instanz **WakeUpActions** anlegen („Instanz hinzufügen“, Suche nach „WakeUpActions“ oder „Weckaktionen“) und dort die Aktionen eintragen.
+4. Für jeden Wecker eine Instanz **WakeUpManager** anlegen (Suche nach „WakeUpManager“ oder „Wecker“) und darin die WakeUpActions-Instanz auswählen.
+
+Updates: In der Instanz **Modules** auf **Auf Aktualisierung prüfen** klicken und das angebotene Update installieren. Über das Zahnrad neben der Library lässt sich der Branch wechseln.
 
 ## Lizenz
 
