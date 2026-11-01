@@ -86,6 +86,7 @@
             "%d failed": "%d fehlgeschlagen",
             "Templates (e.g. early and late shift): wake-up times, weekdays and action selection": "Vorlagen (z. B. Früh- und Spätschicht): Weckzeiten, Wochentage und Aktionsauswahl",
             "Template": "Vorlage",
+            "No templates saved": "Keine Vorlagen gespeichert",
             "Templates": "Vorlagen",
             "Load template": "Vorlage laden",
             "Delete template": "Vorlage löschen",

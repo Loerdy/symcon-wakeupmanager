@@ -78,6 +78,7 @@ Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie ben
 Eine Vorlage speichert Weckzeit, die Option „eigene Weckzeit für das Wochenende“ samt Wochenend-Weckzeit, die aktiven Wochentage und die Aktionsauswahl mit den Zeitversätzen der Heizung. Nicht gespeichert werden der Aktiv-Schalter, die Darstellung der Weckzeit sowie Icon und zentrale Aktionsinstanz; das Laden einer Vorlage schaltet den Wecker also nicht ein oder aus.
 
 - Bis zu 20 Vorlagen je Wecker, Namen mit 1 bis 40 Zeichen. Wird unter einem vorhandenen Namen gespeichert (Groß-/Kleinschreibung egal), wird diese Vorlage überschrieben.
+- Eine Vorlage ist eine Kopie der Einstellungen und nicht mit dem Wecker verknüpft: Nach dem Laden sind die Werte normale Einstellungen des Weckers. Löschen oder Überschreiben einer Vorlage ändert die aktuellen Einstellungen nicht.
 - Laden wirkt wie eine Einstellungsänderung: Zeitpunkte, die dadurch in der Vergangenheit liegen, werden nicht nachgeholt, und am selben Tag bereits ausgeführte Aktionen laufen nicht erneut.
 - Enthält eine Vorlage Aktionen, die es in WakeUpActions nicht mehr gibt, erscheinen sie nach dem Laden wie gewohnt als „Nicht mehr vorhanden“.
 

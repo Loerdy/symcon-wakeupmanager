@@ -175,6 +175,16 @@ class TemplateTest extends WakeUpManagerTestCase
         $this->assertSame(json_encode($this->late()['WakeUpTime']), $this->attribute('WakeUpTime'));
     }
 
+    public function testEmptyTemplateListHasPlaceholderMatchingItsValue(): void
+    {
+        // Ohne Eintrag zum Wert "" meldet die Konsole "Aktueller Wert ist nicht verfügbar"
+        $select = $this->findElement(json_decode($this->manager->GetConfigurationForm(), true)['actions'], 'TemplateSelect');
+
+        $this->assertSame([['caption' => 'No templates saved', 'value' => '']], $select['options']);
+        $this->assertSame('', $select['value']);
+        $this->assertFalse($select['enabled']);
+    }
+
     public function testTemplatesAreOfferedInTileAndConsole(): void
     {
         $this->manager->RequestAction('SaveTemplate', 'Early shift');

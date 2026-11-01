@@ -807,6 +807,10 @@ class WakeUpManager extends IPSModuleStrict
                 }
             } elseif ($name === 'TemplateSelect') {
                 $element['options'] = array_map(static fn (string $template): array => ['caption' => $template, 'value' => $template], $context['templates']);
+                if (count($element['options']) === 0) {
+                    // Die Konsole braucht einen Eintrag zum aktuellen Wert, sonst meldet sie "Wert nicht verfügbar".
+                    $element['options'][] = ['caption' => $this->Translate('No templates saved'), 'value' => ''];
+                }
                 $element['value'] = $context['templates'][0] ?? '';
                 $element['enabled'] = count($context['templates']) > 0;
             } elseif (in_array($name, ['TemplateLoad', 'TemplateOverwrite', 'TemplateDelete'], true)) {
