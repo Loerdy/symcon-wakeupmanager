@@ -45,6 +45,17 @@ class WakeUpManager extends IPSModuleStrict
     // Frühere gemeinsame Auswahlliste (vor den Gruppen); wird per Migrate übernommen.
     private const LEGACY_PROPERTY = 'Actions';
 
+    // Inhalt einer Vorlage: Attribut => Typ. Gespeichert werden die unveränderten Rohdaten, damit nichts verloren geht.
+    private const TEMPLATE_ATTRIBUTES = [
+        'WakeUpTime'        => 'string',
+        'SeparateWeekend'   => 'bool',
+        'WakeUpTimeWeekend' => 'string',
+        'Weekdays'          => 'string',
+        'Selection'         => 'string'
+    ];
+    private const MAX_TEMPLATES = 20;
+    private const MAX_TEMPLATE_NAME = 40;
+
     private const STATUS_INVALID_TIME = 201;
     private const STATUS_NO_WEEKDAY = 202;
     private const STATUS_INVALID_ACTIONS = 203;
@@ -70,6 +81,8 @@ class WakeUpManager extends IPSModuleStrict
         $this->RegisterAttributeString('Selection', '[]');
         // Vom Benutzer in der Kachel gewählte Darstellung der Weckzeit
         $this->RegisterAttributeString('DisplayStyle', 'standard');
+        // Vorlagen (z. B. Früh-/Spätschicht): [{"Name": "...", "Settings": {"<Attribut>": <Rohwert>, ...}}, ...]
+        $this->RegisterAttributeString('Templates', '[]');
 
         // Ende des zuletzt abgearbeiteten Zeitfensters (Unix-Zeitstempel); -1 = Wecker war deaktiviert, nichts nachholen.
         $this->RegisterAttributeInteger('LastProcessed', -1);
@@ -210,7 +223,8 @@ class WakeUpManager extends IPSModuleStrict
             'invalid'        => $invalid,
             'time'           => $this->ParseTime($this->ReadAttributeString('WakeUpTime')),
             'weekendTime'    => $this->GetWeekendTime(),
-            'weekdays'       => $this->LoadWeekdays()
+            'weekdays'       => $this->LoadWeekdays(),
+            'templates'      => $this->TemplateNames()
         ];
         $this->FillFormElements($form['actions'], $context);
 
@@ -347,18 +361,194 @@ class WakeUpManager extends IPSModuleStrict
                 break;
             case 'RunActions':
                 ['error' => $error, 'message' => $message] = $this->RunSelectedActions();
-                // Rückmeldung je Aufrufer: Kachel per Hinweis, Konsole per Popup, Skripte per Exception im Fehlerfall.
-                if ($Value === 'tile') {
-                    $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $error]));
-                } elseif ($Value === 'console') {
-                    $this->UpdateFormField('RunResultText', 'caption', $message);
-                    $this->UpdateFormField('RunResult', 'visible', true);
-                } elseif ($error) {
-                    throw new Exception($message);
+                $this->Respond(is_string($Value) ? $Value : 'script', $message, $error);
+                break;
+            case 'SaveTemplate':
+            case 'LoadTemplate':
+            case 'DeleteTemplate':
+                // Kachel und Konsole senden {"Name", "Source"}, Skripte nur den Namen.
+                $request = is_string($Value) ? json_decode($Value, true) : null;
+                $name = is_array($request) ? ($request['Name'] ?? null) : $Value;
+                $source = is_array($request) && is_string($request['Source'] ?? null) ? $request['Source'] : 'script';
+                try {
+                    $message = match ($Ident) {
+                        'SaveTemplate'   => $this->SaveTemplate($name),
+                        'LoadTemplate'   => $this->LoadTemplate($name),
+                        'DeleteTemplate' => $this->DeleteTemplate($name)
+                    };
+                } catch (Exception $e) {
+                    $this->Respond($source, $e->getMessage(), true);
+                    break;
+                }
+                // Geänderte Vorlagenliste an offene Kacheln senden (Laden aktualisiert die Kachel bereits über Process()).
+                if ($Ident !== 'LoadTemplate') {
+                    $this->UpdateTile();
+                }
+                if ($source === 'console') {
+                    // Erfolg zeigt das neu geladene Formular (Auswahlliste, geladene Einstellungen); ein Popup ginge dabei verloren.
+                    $this->ReloadForm();
+                } else {
+                    $this->Respond($source, $message, false);
                 }
                 break;
             default:
                 throw new Exception('Invalid Ident');
+        }
+    }
+
+    // Rückmeldung je Aufrufer: Kachel per Hinweis, Konsole per Popup, Skripte per Exception im Fehlerfall.
+    private function Respond(string $source, string $message, bool $error): void
+    {
+        if ($source === 'tile') {
+            $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $error]));
+        } elseif ($source === 'console') {
+            $this->UpdateFormField('RunResultText', 'caption', $message);
+            $this->UpdateFormField('RunResult', 'visible', true);
+        } elseif ($error) {
+            throw new Exception($message);
+        }
+    }
+
+    // Vorlagen als Liste oder null, wenn die gespeicherten Daten nicht lesbar sind.
+    private function LoadTemplates(): ?array
+    {
+        $templates = $this->DecodeList($this->ReadAttributeString('Templates'));
+        if ($templates === null) {
+            $this->SendDebug('Templates', 'Templates cannot be read', 0);
+        }
+        return $templates;
+    }
+
+    // Namen der lesbaren Vorlagen in gespeicherter Reihenfolge (für Kachel und Konsole).
+    private function TemplateNames(): array
+    {
+        $names = [];
+        foreach ($this->LoadTemplates() ?? [] as $template) {
+            if (is_array($template) && is_string($template['Name'] ?? null)) {
+                $names[] = $template['Name'];
+            }
+        }
+        return $names;
+    }
+
+    // Index der Vorlage mit diesem Namen (ohne Rücksicht auf Groß-/Kleinschreibung) oder null.
+    private function FindTemplate(array $templates, string $name): ?int
+    {
+        foreach ($templates as $index => $template) {
+            if (is_array($template) && is_string($template['Name'] ?? null) && mb_strtolower($template['Name']) === mb_strtolower($name)) {
+                return $index;
+            }
+        }
+        return null;
+    }
+
+    private function TemplateName(mixed $name): string
+    {
+        $name = is_string($name) ? trim($name) : '';
+        if ($name === '' || mb_strlen($name) > self::MAX_TEMPLATE_NAME) {
+            throw new Exception($this->Translate('Please enter a name with 1 to 40 characters'));
+        }
+        return $name;
+    }
+
+    // Speichert die aktuellen Einstellungen unter dem Namen; eine gleichnamige Vorlage wird überschrieben.
+    private function SaveTemplate(mixed $name): string
+    {
+        $name = $this->TemplateName($name);
+        $this->Locked(function () use ($name): void
+        {
+            $templates = $this->LoadTemplates();
+            if ($templates === null) {
+                throw new Exception($this->Translate('The saved templates cannot be read'));
+            }
+            $settings = [];
+            foreach (self::TEMPLATE_ATTRIBUTES as $attribute => $type) {
+                $settings[$attribute] = $type === 'bool' ? $this->ReadAttributeBoolean($attribute) : $this->ReadAttributeString($attribute);
+            }
+            $index = $this->FindTemplate($templates, $name);
+            if ($index === null && count($templates) >= self::MAX_TEMPLATES) {
+                throw new Exception(sprintf($this->Translate('No more than %d templates can be saved'), self::MAX_TEMPLATES));
+            }
+            $templates[$index ?? count($templates)] = ['Name' => $name, 'Settings' => $settings];
+            $this->WriteTemplates($templates);
+        });
+        return sprintf($this->Translate('Template "%s" saved'), $name);
+    }
+
+    // Übernimmt die Einstellungen der Vorlage wie jede andere Einstellungsänderung (kein Nachholen, keine
+    // erneute Ausführung am selben Tag). Aktiv-Schalter und Darstellung bleiben unverändert.
+    private function LoadTemplate(mixed $name): string
+    {
+        $name = $this->TemplateName($name);
+        $templates = $this->LoadTemplates();
+        if ($templates === null) {
+            throw new Exception($this->Translate('The saved templates cannot be read'));
+        }
+        $index = $this->FindTemplate($templates, $name);
+        if ($index === null) {
+            throw new Exception($this->Translate('The template does not exist'));
+        }
+        $settings = $templates[$index]['Settings'] ?? null;
+        foreach (self::TEMPLATE_ATTRIBUTES as $attribute => $type) {
+            $value = is_array($settings) ? ($settings[$attribute] ?? null) : null;
+            if (($type === 'bool' && !is_bool($value)) || ($type === 'string' && !is_string($value))) {
+                throw new Exception($this->Translate('The template cannot be read'));
+            }
+        }
+
+        $this->UpdateSettings(function () use ($settings): void
+        {
+            foreach (self::TEMPLATE_ATTRIBUTES as $attribute => $type) {
+                if ($type === 'bool') {
+                    $this->WriteAttributeBoolean($attribute, $settings[$attribute]);
+                } else {
+                    $this->WriteAttributeString($attribute, $settings[$attribute]);
+                }
+            }
+        });
+        return sprintf($this->Translate('Template "%s" loaded'), $templates[$index]['Name']);
+    }
+
+    private function DeleteTemplate(mixed $name): string
+    {
+        $name = $this->TemplateName($name);
+        $this->Locked(function () use ($name): void
+        {
+            $templates = $this->LoadTemplates();
+            if ($templates === null) {
+                throw new Exception($this->Translate('The saved templates cannot be read'));
+            }
+            $index = $this->FindTemplate($templates, $name);
+            if ($index === null) {
+                throw new Exception($this->Translate('The template does not exist'));
+            }
+            unset($templates[$index]);
+            $this->WriteTemplates(array_values($templates));
+        });
+        return sprintf($this->Translate('Template "%s" deleted'), $name);
+    }
+
+    private function WriteTemplates(array $templates): void
+    {
+        $encoded = json_encode($templates);
+        if ($encoded === false) {
+            throw new Exception($this->Translate('The setting could not be saved, please try again'));
+        }
+        $this->WriteAttributeString('Templates', $encoded);
+    }
+
+    // Führt $call unter der Instanzsperre aus (wie Einstellungen und Weckroutine).
+    private function Locked(callable $call): void
+    {
+        $semaphore = 'WUM_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Settings', 'Semaphore could not be entered', 0);
+            throw new Exception($this->Translate('The setting could not be saved, please try again'));
+        }
+        try {
+            $call();
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
         }
     }
 
@@ -521,20 +711,24 @@ class WakeUpManager extends IPSModuleStrict
     // Schreibt Einstellungen unter derselben Sperre wie die Weckroutine und berechnet danach den nächsten Zeitpunkt neu.
     private function UpdateSettings(callable $write): void
     {
-        $semaphore = 'WUM_' . $this->InstanceID;
-        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
-            $this->SendDebug('Settings', 'Semaphore could not be entered', 0);
-            throw new Exception($this->Translate('The setting could not be saved, please try again'));
-        }
-        try {
+        $due = [];
+        $error = null;
+        $this->Locked(function () use ($write, &$due, &$error): void
+        {
             // Was nach der bisherigen Einstellung bis jetzt fällig war, wird noch ausgeführt. Danach beginnt das
             // Zeitfenster jetzt: Zeitpunkte, die erst durch die Änderung in der Vergangenheit liegen, werden nicht nachgeholt.
             $due = $this->TakeCurrentDueActions();
-            $write();
-        } finally {
-            IPS_SemaphoreLeave($semaphore);
-        }
+            try {
+                $write();
+            } catch (Exception $e) {
+                // Bereits als ausgeführt gespeicherte Aktionen trotzdem starten, erst danach den Fehler melden.
+                $error = $e;
+            }
+        });
         $this->Process($due);
+        if ($error !== null) {
+            throw $error;
+        }
     }
 
     // Fällige Aktionen nach der gespeicherten Einstellung; nur unter der Sperre aufrufen.
@@ -611,6 +805,16 @@ class WakeUpManager extends IPSModuleStrict
                 } else {
                     $element['value'] = isset($context['weekdays'][$day]);
                 }
+            } elseif ($name === 'TemplateSelect') {
+                $element['options'] = array_map(static fn (string $template): array => ['caption' => $template, 'value' => $template], $context['templates']);
+                if (count($element['options']) === 0) {
+                    // Die Konsole braucht einen Eintrag zum aktuellen Wert, sonst meldet sie "Wert nicht verfügbar".
+                    $element['options'][] = ['caption' => $this->Translate('No templates saved'), 'value' => ''];
+                }
+                $element['value'] = $context['templates'][0] ?? '';
+                $element['enabled'] = count($context['templates']) > 0;
+            } elseif (in_array($name, ['TemplateLoad', 'TemplateOverwrite', 'TemplateDelete'], true)) {
+                $element['enabled'] = count($context['templates']) > 0;
             } elseif ($name === 'ActionsHint') {
                 if ($context['actionInstance'] <= 0) {
                     $element['caption'] = 'Select the central actions and apply; the actions will then be listed here.';
@@ -774,6 +978,7 @@ class WakeUpManager extends IPSModuleStrict
             'next'      => $next,
             'hint'      => $hint,
             'groups'    => $groups,
+            'templates' => $this->TemplateNames(),
             'maxOffset' => self::MAX_OFFSET
         ], JSON_INVALID_UTF8_SUBSTITUTE);
     }

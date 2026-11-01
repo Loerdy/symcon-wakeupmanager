@@ -6,6 +6,18 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-01
+
+Beta.
+
+### Hinzugefügt
+
+- **Vorlagen je Wecker**, z. B. für Früh- und Spätschicht: Weckzeiten, Wochentage und Aktionsauswahl unter einem Namen speichern, laden, mit den aktuellen Einstellungen überschreiben und löschen – in der Konsole und in der großen Ansicht der Kachel, auch per `IPS_RequestAction` (`SaveTemplate`, `LoadTemplate`, `DeleteTemplate`). Aktiv-Schalter und Darstellung bleiben beim Laden unverändert.
+
+### Behoben
+
+- Scheiterte das Speichern einer Einstellung genau in dem Moment, in dem Aktionen fällig waren, wurden diese zwar als ausgeführt vermerkt, aber nicht gestartet.
+
 ## [1.2.0] - 2026-11-01
 
 Beta.
@@ -63,7 +75,8 @@ Erstes Release (Beta).
 - Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
 - Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
 
-[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Loerdy/symcon-wakeupmanager/releases/tag/v1.0.0
