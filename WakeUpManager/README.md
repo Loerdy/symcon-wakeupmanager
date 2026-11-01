@@ -92,8 +92,10 @@ Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie ben
 | 201 | Die Weckzeit ist ungültig |
 | 202 | Es ist kein Wochentag aktiviert |
 | 203 | Die Aktionsauswahl ist nicht lesbar |
-| 204 | Die zentralen Aktionen sind nicht verfügbar (Instanz gelöscht, falscher Typ oder Liste nicht lesbar) |
+| 204 | Die zentralen Aktionen sind nicht verfügbar (Instanz gelöscht, falscher Typ oder Liste nicht lesbar). Der Wecker läuft weiter und zeigt die nächste Weckzeit an; nur die Aktionen können nicht ausgeführt werden. |
 | 205 | Die gespeicherten Wochentage sind nicht lesbar (bleiben unverändert erhalten) |
+
+Bei 203, 204 und 205 erscheint zusätzlich ein Eintrag im Meldungsfenster, und zwar einmal beim Wechsel in diesen Status, nicht bei jeder weiteren Bedienung.
 
 ## 8. PHP-Befehlsreferenz
 

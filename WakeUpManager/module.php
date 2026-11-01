@@ -213,7 +213,7 @@ class WakeUpManager extends IPSModuleStrict
         ];
         $this->FillFormElements($form['actions'], $context);
 
-        return json_encode($form);
+        return (string) json_encode($form, JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     public function GetVisualizationTile(): string
@@ -806,7 +806,6 @@ class WakeUpManager extends IPSModuleStrict
                 $this->SetTimerInterval(self::TIMER, 0);
                 return [];
             }
-            $this->SetStatus($config['catalog'] === null && $this->ReadPropertyInteger('ActionInstance') > 0 ? self::STATUS_CATALOG_UNAVAILABLE : IS_ACTIVE);
 
             $due = $this->TakeDueActions($config, $now);
             $this->ScheduleNext($config, $now);
@@ -814,6 +813,15 @@ class WakeUpManager extends IPSModuleStrict
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
+    }
+
+    // Meldet einen Fehler nur beim Wechsel in diesen Status im Meldungsfenster, nicht bei jeder Neuberechnung.
+    private function SetErrorStatus(int $status, string $message, int $type): void
+    {
+        if ($this->GetStatus() !== $status) {
+            $this->LogMessage($this->Translate($message), $type);
+        }
+        $this->SetStatus($status);
     }
 
     private function LoadConfiguration(): ?array
@@ -826,8 +834,7 @@ class WakeUpManager extends IPSModuleStrict
 
         $weekdays = $this->LoadWeekdays();
         if ($weekdays === null) {
-            $this->LogMessage($this->Translate('The weekdays of the alarm clock cannot be read'), KL_ERROR);
-            $this->SetStatus(self::STATUS_INVALID_WEEKDAYS);
+            $this->SetErrorStatus(self::STATUS_INVALID_WEEKDAYS, 'The weekdays of the alarm clock cannot be read', KL_ERROR);
             return null;
         }
         if (count($weekdays) === 0) {
@@ -838,8 +845,7 @@ class WakeUpManager extends IPSModuleStrict
 
         $selection = $this->LoadSelection();
         if ($selection === null) {
-            $this->LogMessage($this->Translate('The action selection of the alarm clock cannot be read'), KL_ERROR);
-            $this->SetStatus(self::STATUS_INVALID_ACTIONS);
+            $this->SetErrorStatus(self::STATUS_INVALID_ACTIONS, 'The action selection of the alarm clock cannot be read', KL_ERROR);
             return null;
         }
 
@@ -847,7 +853,9 @@ class WakeUpManager extends IPSModuleStrict
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
         if ($actionInstance > 0 && $catalog === null) {
-            $this->LogMessage($this->Translate('The central actions of the alarm clock are not available'), KL_WARNING);
+            $this->SetErrorStatus(self::STATUS_CATALOG_UNAVAILABLE, 'The central actions of the alarm clock are not available', KL_WARNING);
+        } else {
+            $this->SetStatus(IS_ACTIVE);
         }
 
         $actions = [];

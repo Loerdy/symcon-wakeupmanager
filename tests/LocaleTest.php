@@ -53,6 +53,8 @@ class LocaleTest extends TestCase
         $texts = [...$texts, ...$matches[1]];
         preg_match_all("/\\['caption'\\] = '([^']+)'/", $php, $matches);
         $texts = [...$texts, ...$matches[1]];
+        preg_match_all("/SetErrorStatus\\([^,]+, '([^']+)'/", $php, $matches);
+        $texts = [...$texts, ...$matches[1]];
 
         if (file_exists($folder . '/module.html')) {
             $html = file_get_contents($folder . '/module.html');

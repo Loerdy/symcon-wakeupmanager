@@ -3,7 +3,10 @@
     "name": "WakeUpActions",
     "type": 3,
     "vendor": "WakeUpManager",
-    "aliases": [],
+    "aliases": [
+        "Weckaktionen",
+        "Wake-up Actions"
+    ],
     "url": "https://github.com/Loerdy/symcon-wakeupmanager",
     "parentRequirements": [],
     "childRequirements": [],

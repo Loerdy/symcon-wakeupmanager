@@ -9,6 +9,9 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 ### Geändert
 
 - Kachel (kompakte Ansicht): Die Abstände zwischen Icon, Weckzeit und Wochentag wachsen jetzt mit der Kachelgröße. Das Icon für den Aktiv-Schalter ist größer und reagiert beim Darüberfahren mit der Maus, damit es als Schalter erkennbar ist. Der Inhalt sitzt etwas höher.
+- Kachel: Das Aktiv-Icon lässt sich per Tastatur (Tab, Enter, Leertaste) bedienen und zeigt beim Fokus einen Rahmen. Der Tooltip wird zuverlässig übersetzt.
+- „Instanz hinzufügen“: Die Module sind auch unter „Wecker“ bzw. „Weckaktionen“ (englisch „Alarm Clock“ bzw. „Wake-up Actions“) zu finden.
+- Fehler wie nicht verfügbare zentrale Aktionen oder unlesbare Einstellungen erscheinen nur noch einmal beim Wechsel in den Fehlerstatus im Meldungsfenster, nicht bei jeder Bedienung.
 
 ### Behoben
 
@@ -16,6 +19,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Kachel: Die Tagesangabe („Heute“, „Morgen“, Wochentag) wird um Mitternacht aktualisiert und zeigt nach Mitternacht nicht mehr den Stand vom Vortag.
 - Eine Einstellungsänderung holt keine Zeitpunkte mehr nach, die erst durch die Änderung in der Vergangenheit liegen. Bisher hing es von der letzten Verarbeitung ab, ob eine gerade vergangene Weckzeit nachgeholt wurde; nach dem Wecken konnte ein Umstellen auf eine frühere Uhrzeit erneut wecken.
 - Änderungen an der Aktionsauswahl (Konsole, Kachel, `IPS_RequestAction`) betreffen nur noch die geänderte Aktion. Bisher gingen dabei beschädigte oder nicht zuordenbare gespeicherte Einträge verloren. Unveränderte Werte werden nicht mehr neu gespeichert.
+- Das Konfigurationsformular öffnet auch, wenn gespeicherte Texte ungültige Zeichen (ungültiges UTF-8) enthalten.
 - War die Weckroutine beim Auslösen des Timers kurzzeitig belegt, versucht der Wecker es nach einer Sekunde erneut. Bisher wartete er auf den nächsten geplanten Zeitpunkt, und fällige Aktionen konnten ausfallen.
 
 ## [1.0.0] - 2026-10-31
