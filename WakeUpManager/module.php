@@ -734,8 +734,8 @@ class WakeUpManager extends IPSModuleStrict
         // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
         $this->UpdateTile();
 
-        // Aktionen außerhalb der Sperre ausführen, damit langsame Aktionen keine Bedienung blockieren. Sie sind
-        // bereits als ausgeführt gespeichert, ein paralleler Aufruf führt sie deshalb nicht erneut aus.
+        // Aktionen außerhalb der Sperre starten (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind
+        // bereits als ausgeführt gespeichert, ein paralleler Aufruf startet sie deshalb nicht erneut.
         foreach ($due as $action) {
             $this->RunAction($action['label'], $action['definition']);
         }
@@ -1043,6 +1043,22 @@ class WakeUpManager extends IPSModuleStrict
 
     private function ScheduleNext(array $config, int $now): void
     {
+        ['next' => $next, 'wakeUp' => $nextWakeUp] = $this->GetNextPoints($config, $now);
+
+        if ($next === null) {
+            $this->SendDebug('Schedule', 'No next point in time found', 0);
+            $this->SetTimerInterval(self::TIMER, 0);
+            return;
+        }
+
+        $interval = max(100, (int) ceil(($next - microtime(true)) * 1000));
+        $this->SetTimerInterval(self::TIMER, $interval);
+        $this->SendDebug('Schedule', 'Next point in time: ' . $this->FormatTime($next) . ', next wake-up: ' . ($nextWakeUp === null ? '-' : $this->FormatTime($nextWakeUp)), 0);
+    }
+
+    // Nächster fälliger Zeitpunkt für den Timer und nächster Weckzeitpunkt nach $now (jeweils null, wenn keiner ansteht).
+    private function GetNextPoints(array $config, int $now): array
+    {
         $range = self::MAX_OFFSET * 60;
         $next = null;
         $nextWakeUp = null;
@@ -1072,16 +1088,7 @@ class WakeUpManager extends IPSModuleStrict
                 }
             }
         }
-
-        if ($next === null) {
-            $this->SendDebug('Schedule', 'No next point in time found', 0);
-            $this->SetTimerInterval(self::TIMER, 0);
-            return;
-        }
-
-        $interval = max(100, (int) ceil(($next - microtime(true)) * 1000));
-        $this->SetTimerInterval(self::TIMER, $interval);
-        $this->SendDebug('Schedule', 'Next point in time: ' . $this->FormatTime($next) . ', next wake-up: ' . ($nextWakeUp === null ? '-' : $this->FormatTime($nextWakeUp)), 0);
+        return ['next' => $next, 'wakeUp' => $nextWakeUp];
     }
 
     // Liefert alle Aktionszeitpunkte im Intervall ($from, $to], sortiert nach Zeit und Listenreihenfolge.

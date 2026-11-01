@@ -1,0 +1,5 @@
+{
+    "id": "wakeupmanager.test.record",
+    "caption": "Record execution (test only)",
+    "action": "$GLOBALS['WUM_TEST_RUNS'][] = $_IPS['name'];"
+}
