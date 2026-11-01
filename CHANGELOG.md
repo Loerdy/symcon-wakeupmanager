@@ -6,6 +6,10 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- Button „Ausgewählte Aktionen jetzt ausführen (Test)“ in der Konsole des Weckers: startet die ausgewählten Aktionen sofort, ohne das reguläre Wecken zu beeinflussen. Auch per `IPS_RequestAction($id, 'TestActions', true)`.
+
 ### Geändert
 
 - Kachel (kompakte Ansicht): Die Abstände zwischen Icon, Weckzeit und Wochentag wachsen jetzt mit der Kachelgröße. Das Icon für den Aktiv-Schalter ist größer und reagiert beim Darüberfahren mit der Maus, damit es als Schalter erkennbar ist. Der Inhalt sitzt etwas höher.
@@ -19,6 +23,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Kachel: Die Tagesangabe („Heute“, „Morgen“, Wochentag) wird um Mitternacht aktualisiert und zeigt nach Mitternacht nicht mehr den Stand vom Vortag.
 - Eine Einstellungsänderung holt keine Zeitpunkte mehr nach, die erst durch die Änderung in der Vergangenheit liegen. Bisher hing es von der letzten Verarbeitung ab, ob eine gerade vergangene Weckzeit nachgeholt wurde; nach dem Wecken konnte ein Umstellen auf eine frühere Uhrzeit erneut wecken.
 - Änderungen an der Aktionsauswahl (Konsole, Kachel, `IPS_RequestAction`) betreffen nur noch die geänderte Aktion. Bisher gingen dabei beschädigte oder nicht zuordenbare gespeicherte Einträge verloren. Unveränderte Werte werden nicht mehr neu gespeichert.
+- Wird die Weckzeit verschoben, nachdem Aktionen für diesen Tag bereits gelaufen sind (z. B. die vorgeheizte Heizung), werden sie nicht erneut ausgeführt. Bisher galt die verschobene Weckzeit als neuer Weckvorgang.
 - Das Konfigurationsformular öffnet auch, wenn gespeicherte Texte ungültige Zeichen (ungültiges UTF-8) enthalten.
 - War die Weckroutine beim Auslösen des Timers kurzzeitig belegt, versucht der Wecker es nach einer Sekunde erneut. Bisher wartete er auf den nächsten geplanten Zeitpunkt, und fällige Aktionen konnten ausfallen.
 

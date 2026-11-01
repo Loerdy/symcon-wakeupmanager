@@ -149,6 +149,61 @@ class ScheduleTest extends WakeUpManagerTestCase
         $this->assertSame([], $this->labels($this->call($this->manager, 'TakeDueActions', $config, $wake + 10)));
     }
 
+    public function testMovingWakeUpTimeDoesNotRepeatExecutedHeating(): void
+    {
+        // Heizung −60 lief um 05:30 für 06:30; danach Weckzeit auf 06:45 verschoben -> Heizung um 05:45 nicht erneut
+        $heat = [['key' => 'H', 'label' => 'Heat', 'offset' => -3600]];
+        $this->writeAttributes($this->manager, ['LastProcessed' => $this->timestamp('2026-11-04 05:29:50')]);
+        $this->assertSame(['Heat'], $this->labels($this->call($this->manager, 'TakeDueActions', $this->config($this->clock(6, 30), [], $heat), $this->timestamp('2026-11-04 05:30:01'))));
+
+        $moved = $this->config($this->clock(6, 45), [], $heat);
+        $this->assertSame([], $this->labels($this->call($this->manager, 'TakeDueActions', $moved, $this->timestamp('2026-11-04 05:45:01'))));
+    }
+
+    public function testMovingWakeUpTimeAfterWakingDoesNotWakeAgain(): void
+    {
+        $light = [['key' => 'L', 'label' => 'Light', 'offset' => 0]];
+        $this->writeAttributes($this->manager, ['LastProcessed' => $this->timestamp('2026-11-04 06:29:50')]);
+        $this->assertSame(['Light'], $this->labels($this->call($this->manager, 'TakeDueActions', $this->config($this->clock(6, 30), [], $light), $this->timestamp('2026-11-04 06:30:01'))));
+
+        $moved = $this->config($this->clock(6, 45), [], $light);
+        $this->assertSame([], $this->labels($this->call($this->manager, 'TakeDueActions', $moved, $this->timestamp('2026-11-04 06:45:01'))));
+    }
+
+    public function testExecutedActionsRunAgainOnTheNextWakeDay(): void
+    {
+        $heat = [['key' => 'H', 'label' => 'Heat', 'offset' => -3600]];
+        $config = $this->config($this->clock(6, 30), [], $heat);
+        $this->writeAttributes($this->manager, ['LastProcessed' => $this->timestamp('2026-11-04 05:29:50')]);
+        $this->assertSame(['Heat'], $this->labels($this->call($this->manager, 'TakeDueActions', $config, $this->timestamp('2026-11-04 05:30:01'))));
+
+        $this->writeAttributes($this->manager, ['LastProcessed' => $this->timestamp('2026-11-05 05:29:50')]);
+        $this->assertSame(['Heat'], $this->labels($this->call($this->manager, 'TakeDueActions', $config, $this->timestamp('2026-11-05 05:30:01'))));
+    }
+
+    public function testLeadTimeOnPreviousDayBelongsToTheWakeDay(): void
+    {
+        // Heizung −480 lief Montag 22:30 für Dienstag 06:30; Weckzeit auf 07:00 verschoben -> nicht um 23:00 erneut
+        $heat = [['key' => 'H', 'label' => 'Heat', 'offset' => -480 * 60]];
+        $this->writeAttributes($this->manager, ['LastProcessed' => $this->timestamp('2026-11-02 22:29:50')]);
+        $this->assertSame(['Heat'], $this->labels($this->call($this->manager, 'TakeDueActions', $this->config($this->clock(6, 30), [], $heat), $this->timestamp('2026-11-02 22:30:01'))));
+
+        $moved = $this->config($this->clock(7, 0), [], $heat);
+        $this->assertSame([], $this->labels($this->call($this->manager, 'TakeDueActions', $moved, $this->timestamp('2026-11-02 23:00:01'))));
+    }
+
+    public function testExecutionLogInPreviousFormatIsRespected(): void
+    {
+        // Protokoll vor dem Update: Schlüssel = Weckzeitpunkt als Unix-Zeitstempel
+        $this->writeAttributes($this->manager, [
+            'LastProcessed' => $this->timestamp('2026-11-04 05:30:01'),
+            'Executed'      => json_encode([(string) $this->timestamp('2026-11-04 06:30') => ['H']])
+        ]);
+
+        $moved = $this->config($this->clock(6, 45), [], [['key' => 'H', 'label' => 'Heat', 'offset' => -3600]]);
+        $this->assertSame([], $this->labels($this->call($this->manager, 'TakeDueActions', $moved, $this->timestamp('2026-11-04 05:45:01'))));
+    }
+
     // Konfiguration wie LoadConfiguration(); ohne Wochentage alle Tage aktiv.
     private function config(array $time, array $weekdays = [], array $actions = []): array
     {

@@ -50,6 +50,7 @@ Ein Wecker pro Instanz. Zur Weckzeit werden die ausgewählten Aktionen aus [Wake
 | Weckzeit Wochenende | Weckzeit für Sa/So bei eingeschalteter Option, gespeichert über **Weckzeit Wochenende speichern**. |
 | Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr), auch bei getrenntem Wochenende einzeln wählbar. |
 | Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe eine Liste der zentralen Aktionen mit **Ausführen** (an/aus); bei Heizung zusätzlich **Zeitversatz**. Leere Gruppen werden ausgeblendet. |
+| Ausgewählte Aktionen jetzt ausführen (Test) | Startet alle mit **Ausführen** markierten Aktionen sofort einmal, unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz. Das reguläre Wecken wird davon nicht beeinflusst. |
 
 Nach Auswahl der zentralen Instanz einmal **Übernehmen**, danach erscheinen die Aktionen zur Auswahl. Alle Eingaben werden vom Modul geprüft; ungültige Werte werden abgelehnt.
 
@@ -76,7 +77,7 @@ Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie ben
 - Fällige Aktionen werden nacheinander gestartet, nachdem sie als ausgeführt gespeichert wurden. IP-Symcon führt sie parallel aus; als „fehlgeschlagen“ gilt deshalb ein nicht möglicher Start, nicht ein Fehler während der Ausführung.
 - Die Zeitberechnung erfolgt in der lokalen Zeitzone von IP-Symcon. Der Zeitversatz ist eine echte Zeitspanne: Bei der Zeitumstellung liegt eine Aktion mit −60 Minuten immer genau eine Stunde vor der Weckzeit.
 - Fällt die Weckzeit in die bei der Umstellung auf Sommerzeit ausgelassene Stunde (z. B. 02:30), wird an diesem Tag zur nächsten gültigen Uhrzeit (03:30) geweckt. Bei der Umstellung auf Winterzeit wird eine doppelt vorhandene Uhrzeit nur einmal ausgelöst (erstes Auftreten).
-- Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt – auch bei verspätetem Timer, Neustart oder erneutem Übernehmen der Konfiguration. Wird nur der Zeitversatz oder die zentrale Definition einer bereits ausgeführten Aktion geändert, wird sie im selben Weckvorgang nicht erneut ausgeführt.
+- Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt – auch bei verspätetem Timer, Neustart oder erneutem Übernehmen der Konfiguration. Ein Weckvorgang ist das Wecken an einem Tag, einschließlich der Heizungsaktionen davor und danach. Wird die Weckzeit, der Zeitversatz oder die zentrale Definition einer bereits ausgeführten Aktion geändert, wird sie an diesem Tag nicht erneut ausgeführt. Beispiel: Die Heizung (−60 Minuten) lief um 05:30 für 06:30; wird die Weckzeit danach auf 06:45 verschoben, heizt sie um 05:45 nicht noch einmal.
 - **Verpasste Zeitpunkte:** Noch nicht verarbeitete Zeitpunkte, die höchstens 5 Minuten zurückliegen, werden nachgeholt (z. B. kurzer Neustart, verzögerter Timer). Ältere Zeitpunkte werden nicht nachgeholt; das wird im Meldungsfenster als Warnung protokolliert.
 - **Einstellungsänderungen holen nichts nach:** Wird die Weckzeit auf eine Uhrzeit in der Vergangenheit gestellt (oder ein Wochentag bzw. ein Zeitversatz so geändert, dass ein Zeitpunkt bereits vorbei ist), gilt die Änderung erst ab dem nächsten Zeitpunkt in der Zukunft. Was nach der bisherigen Einstellung bereits fällig war, wird noch ausgeführt. So wird nach dem Wecken auch durch Umstellen auf eine frühere Uhrzeit nicht erneut geweckt.
 - Beim (Re-)Aktivieren des Weckers wird nichts nachgeholt, auch nicht innerhalb der 5 Minuten. Zeitpunkte während der Deaktivierung entfallen.
@@ -109,3 +110,4 @@ Das Modul stellt keine eigenen `WUM_*`-Befehle bereit. Die Einstellungen lassen 
 | `SetWakeUpTimeWeekend` | Uhrzeit `"HH:MM"` | `IPS_RequestAction(12345, 'SetWakeUpTimeWeekend', '08:30');` |
 | `SetWeekday` | JSON `{"Day": 1–7, "Active": bool}` (1 = Montag) | `IPS_RequestAction(12345, 'SetWeekday', json_encode(['Day' => 6, 'Active' => true]));` |
 | `SetDisplayStyle` | `"standard"`, `"digital"` oder `"flip"` | `IPS_RequestAction(12345, 'SetDisplayStyle', 'flip');` |
+| `TestActions` | beliebig (wird ignoriert) | `IPS_RequestAction(12345, 'TestActions', true);` |

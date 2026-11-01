@@ -73,7 +73,9 @@
             "Display of the wake-up time": "Darstellung der Weckzeit",
             "Standard": "Standard",
             "Digital": "Digital",
-            "Flip cards": "Klappzahlen"
+            "Flip cards": "Klappzahlen",
+            "Execute selected actions now (test)": "Ausgewählte Aktionen jetzt ausführen (Test)",
+            "No actions are selected": "Es sind keine Aktionen ausgewählt"
         }
     }
 }

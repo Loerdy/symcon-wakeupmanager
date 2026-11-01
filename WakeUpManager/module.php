@@ -73,7 +73,7 @@ class WakeUpManager extends IPSModuleStrict
 
         // Ende des zuletzt abgearbeiteten Zeitfensters (Unix-Zeitstempel); -1 = Wecker war deaktiviert, nichts nachholen.
         $this->RegisterAttributeInteger('LastProcessed', -1);
-        // Bereits ausgeführte Aktionen je Weckvorgang: {"<Weckzeitpunkt>": ["<Aktions-ID>", ...]}
+        // Bereits ausgeführte Aktionen je Weckvorgang: {"<Wecktag Y-m-d>": ["<Aktions-ID>", ...]}
         $this->RegisterAttributeString('Executed', '{}');
 
         $this->RegisterTimer(self::TIMER, 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProcessTimer\', 0);');
@@ -344,8 +344,40 @@ class WakeUpManager extends IPSModuleStrict
                 }
                 $this->UpdateSelection($Value, null);
                 break;
+            case 'TestActions':
+                $this->TestActions();
+                break;
             default:
                 throw new Exception('Invalid Ident');
+        }
+    }
+
+    // Startet die ausgewählten Aktionen sofort zum Testen, unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz.
+    // Protokoll, Zeitfenster und Timer der Weckroutine bleiben unverändert, das reguläre Wecken läuft normal.
+    private function TestActions(): void
+    {
+        $selection = $this->LoadSelection();
+        if ($selection === null) {
+            throw new Exception($this->Translate('The action selection cannot be read'));
+        }
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+        if ($catalog === null) {
+            throw new Exception($this->Translate('The central actions are not available'));
+        }
+
+        // Reihenfolge wie in der Konsole: nach Gruppen und zentraler Liste
+        $started = 0;
+        foreach ($catalog as $id => $definition) {
+            if (!($selection[$id]['Active'] ?? false)) {
+                continue;
+            }
+            $this->SendDebug('Test', 'Starting ' . $definition['name'], 0);
+            $this->RunAction($definition['name'], $definition);
+            $started++;
+        }
+        if ($started === 0) {
+            throw new Exception($this->Translate('No actions are selected'));
         }
     }
 
@@ -1028,20 +1060,23 @@ class WakeUpManager extends IPSModuleStrict
         $originalExecuted = $executed;
         $due = [];
         foreach ($events as $event) {
-            $occurrence = (string) $event['occurrence'];
+            // Ein Weckvorgang je Wecktag: Wird die Weckzeit verschoben, laufen bereits ausgeführte Aktionen
+            // (z. B. die vorgeheizte Heizung) an diesem Tag nicht erneut.
+            $day = $this->WakeDay($event['occurrence']);
             $key = $event['action']['key'];
-            if (in_array($key, $executed[$occurrence] ?? [], true)) {
+            if (in_array($key, $executed[$day] ?? [], true)) {
                 $this->SendDebug('Execute', $event['action']['label'] . ' was already executed for this wake-up', 0);
                 continue;
             }
-            $executed[$occurrence][] = $key;
+            $executed[$day][] = $key;
             $due[] = $event;
         }
 
         // Einträge entfernen, deren Weckvorgang keine fälligen Aktionen mehr haben kann.
-        foreach (array_keys($executed) as $occurrence) {
-            if ((int) $occurrence < $now - self::MAX_OFFSET * 60) {
-                unset($executed[$occurrence]);
+        $oldestDay = $this->WakeDay($now - self::MAX_OFFSET * 60);
+        foreach (array_keys($executed) as $day) {
+            if ($day < $oldestDay) {
+                unset($executed[$day]);
             }
         }
 
@@ -1190,13 +1225,23 @@ class WakeUpManager extends IPSModuleStrict
             $this->SendDebug('State', 'Execution log cannot be read, rebuilding', 0);
             return [];
         }
+        // Schlüssel ist der Wecktag ("Y-m-d"). Frühere Versionen nutzten den Weckzeitpunkt (Unix-Zeitstempel);
+        // diese Einträge werden dem Wecktag zugeordnet, damit ein Update keinen Weckvorgang doppelt ausführt.
         $result = [];
-        foreach ($executed as $occurrence => $keys) {
-            if (is_array($keys)) {
-                $result[(string) $occurrence] = array_values(array_filter($keys, 'is_string'));
+        foreach ($executed as $key => $actions) {
+            if (!is_array($actions)) {
+                continue;
             }
+            $day = ctype_digit((string) $key) ? $this->WakeDay((int) $key) : (string) $key;
+            $result[$day] = array_values(array_unique([...$result[$day] ?? [], ...array_filter($actions, 'is_string')]));
         }
         return $result;
+    }
+
+    // Lokales Datum eines Weckzeitpunkts; kennzeichnet den Weckvorgang im Ausführungsprotokoll.
+    private function WakeDay(int $timestamp): string
+    {
+        return (new DateTimeImmutable('@' . $timestamp))->setTimezone(new DateTimeZone(date_default_timezone_get()))->format('Y-m-d');
     }
 
     // Beim Deaktivieren wird das Zeitfenster verworfen, damit beim Reaktivieren nichts nachgeholt wird.
