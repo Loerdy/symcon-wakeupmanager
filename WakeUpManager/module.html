@@ -352,16 +352,16 @@
         opacity: 0.7;
         font-variant-numeric: tabular-nums;
     }
-    .test {
+    .run-actions {
         display: flex;
         align-items: center;
         gap: 8px 12px;
         flex-wrap: wrap;
     }
-    .test[hidden] {
+    .run-actions[hidden] {
         display: none;
     }
-    .test button {
+    .run-actions button {
         font: inherit;
         color: inherit;
         padding: 6px 12px;
@@ -370,7 +370,7 @@
         background: transparent;
         cursor: pointer;
     }
-    .test button:hover, .test button:focus-visible {
+    .run-actions button:hover, .run-actions button:focus-visible {
         border-color: var(--accent-color);
     }
     .notice {
@@ -426,9 +426,9 @@
     </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
-    <div class="section test" id="testBlock" hidden>
-        <button type="button" id="testButton">Execute selected actions now (test)</button>
-        <span class="notice" id="testNotice" aria-live="polite"></span>
+    <div class="section run-actions" id="runBlock" hidden>
+        <button type="button" id="runButton">Execute selected actions now</button>
+        <span class="notice" id="runNotice" aria-live="polite"></span>
     </div>
 </div>
 
@@ -483,7 +483,7 @@
 
     function handleMessage(data) {
         const message = JSON.parse(data);
-        // Ergebnis des Test-Buttons; der übrige Zustand bleibt unverändert.
+        // Ergebnis von "Ausgewählte Aktionen jetzt ausführen"; der übrige Zustand bleibt unverändert.
         if (typeof message.notice === 'string') {
             showNotice(message.notice, message.error === true);
             return;
@@ -495,7 +495,7 @@
     let noticeTimer = null;
 
     function showNotice(text, error) {
-        const notice = document.getElementById('testNotice');
+        const notice = document.getElementById('runNotice');
         notice.textContent = text;
         notice.classList.toggle('error', error);
         clearTimeout(noticeTimer);
@@ -597,7 +597,7 @@
         }
         document.getElementById('hint').textContent = state.hint ? translate(HINTS[state.hint])
             : (state.groups.length === 0 ? translate('No central actions available.') : '');
-        document.getElementById('testBlock').hidden = state.groups.length === 0;
+        document.getElementById('runBlock').hidden = state.groups.length === 0;
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
@@ -854,8 +854,8 @@
         }
     });
 
-    document.getElementById('testButton').addEventListener('click', function () {
-        requestAction('TestActions', 'tile');
+    document.getElementById('runButton').addEventListener('click', function () {
+        requestAction('RunActions', 'tile');
     });
 
     document.getElementById('active').addEventListener('change', function (event) {

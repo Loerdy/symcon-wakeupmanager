@@ -344,14 +344,14 @@ class WakeUpManager extends IPSModuleStrict
                 }
                 $this->UpdateSelection($Value, null);
                 break;
-            case 'TestActions':
-                ['started' => $started, 'message' => $message] = $this->TestActions();
+            case 'RunActions':
+                ['started' => $started, 'message' => $message] = $this->RunSelectedActions();
                 // Rückmeldung je Aufrufer: Kachel per Hinweis, Konsole per Popup, Skripte per Exception im Fehlerfall.
                 if ($Value === 'tile') {
                     $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $started === 0]));
                 } elseif ($Value === 'console') {
-                    $this->UpdateFormField('TestResultText', 'caption', $message);
-                    $this->UpdateFormField('TestResult', 'visible', true);
+                    $this->UpdateFormField('RunResultText', 'caption', $message);
+                    $this->UpdateFormField('RunResult', 'visible', true);
                 } elseif ($started === 0) {
                     throw new Exception($message);
                 }
@@ -361,10 +361,10 @@ class WakeUpManager extends IPSModuleStrict
         }
     }
 
-    // Startet die ausgewählten Aktionen sofort zum Testen, unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz.
+    // Startet die ausgewählten Aktionen sofort (z. B. zum Testen oder wenn man vor dem Wecker wach ist), unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz.
     // Protokoll, Zeitfenster und Timer der Weckroutine bleiben unverändert, das reguläre Wecken läuft normal.
     // Liefert die Anzahl gestarteter Aktionen und eine übersetzte Meldung (bei 0 der Grund).
-    private function TestActions(): array
+    private function RunSelectedActions(): array
     {
         $selection = $this->LoadSelection();
         if ($selection === null) {
@@ -382,7 +382,7 @@ class WakeUpManager extends IPSModuleStrict
             if (!($selection[$id]['Active'] ?? false)) {
                 continue;
             }
-            $this->SendDebug('Test', 'Starting ' . $definition['name'], 0);
+            $this->SendDebug('Run', 'Starting ' . $definition['name'], 0);
             $this->RunAction($definition['name'], $definition);
             $started++;
         }

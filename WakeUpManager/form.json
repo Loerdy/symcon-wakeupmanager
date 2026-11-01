@@ -282,18 +282,18 @@
         },
         {
             "type": "Button",
-            "caption": "Execute selected actions now (test)",
-            "onClick": "IPS_RequestAction($id, 'TestActions', 'console');"
+            "caption": "Execute selected actions now",
+            "onClick": "IPS_RequestAction($id, 'RunActions', 'console');"
         },
         {
             "type": "PopupAlert",
-            "name": "TestResult",
+            "name": "RunResult",
             "visible": false,
             "popup": {
                 "items": [
                     {
                         "type": "Label",
-                        "name": "TestResultText",
+                        "name": "RunResultText",
                         "caption": ""
                     }
                 ]

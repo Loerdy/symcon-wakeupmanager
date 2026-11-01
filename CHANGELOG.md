@@ -8,7 +8,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ### Hinzugefügt
 
-- Button „Ausgewählte Aktionen jetzt ausführen (Test)“ in der Konsole und in der großen Ansicht der Kachel: startet die ausgewählten Aktionen sofort, ohne das reguläre Wecken zu beeinflussen, und meldet, wie viele Aktionen gestartet wurden bzw. warum keine. Auch per `IPS_RequestAction($id, 'TestActions', true)`.
+- Button „Ausgewählte Aktionen jetzt ausführen“ in der Konsole und in der großen Ansicht der Kachel: startet die ausgewählten Aktionen sofort, ohne das reguläre Wecken zu beeinflussen, und meldet, wie viele Aktionen gestartet wurden bzw. warum keine. Auch per `IPS_RequestAction($id, 'RunActions', true)`.
 
 ### Geändert
 

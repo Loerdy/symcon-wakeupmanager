@@ -6,7 +6,7 @@ include_once __DIR__ . '/WakeUpManagerTestCase.php';
 
 // Button "Ausgewählte Aktionen jetzt ausführen": startet die aktiven Aktionen einmal, ohne Protokoll, Zeitfenster
 // oder Timer der Weckroutine zu verändern.
-class TestActionsTest extends WakeUpManagerTestCase
+class RunActionsTest extends WakeUpManagerTestCase
 {
     public function testRunsActiveActionsEvenWhenAlarmIsInactive(): void
     {
@@ -15,7 +15,7 @@ class TestActionsTest extends WakeUpManagerTestCase
             'Selection' => [['ID' => 'H', 'Active' => true, 'Offset' => -60], ['ID' => 'L', 'Active' => true, 'Offset' => 0]]
         ]);
 
-        $manager->RequestAction('TestActions', true);
+        $manager->RequestAction('RunActions', true);
 
         // Reihenfolge wie in der Konsole: Lampen vor Heizung
         $this->assertSame(['Light', 'Heat'], $this->runs());
@@ -27,7 +27,7 @@ class TestActionsTest extends WakeUpManagerTestCase
             'Selection' => [['ID' => 'L', 'Active' => false, 'Offset' => 0], ['ID' => 'H', 'Active' => true, 'Offset' => 0]]
         ]);
 
-        $manager->RequestAction('TestActions', true);
+        $manager->RequestAction('RunActions', true);
 
         $this->assertSame(['Heat'], $this->runs());
     }
@@ -43,7 +43,7 @@ class TestActionsTest extends WakeUpManagerTestCase
         $this->writeAttributes($manager, ['LastProcessed' => 12345, 'Executed' => '{"2026-11-04":["L"]}']);
         $timer = $this->call($manager, 'GetTimerInterval', 'WakeUpTimer');
 
-        $manager->RequestAction('TestActions', true);
+        $manager->RequestAction('RunActions', true);
 
         $this->assertSame(['Light'], $this->runs());
         $this->assertSame(12345, $this->call($manager, 'ReadAttributeInteger', 'LastProcessed'));
@@ -56,7 +56,7 @@ class TestActionsTest extends WakeUpManagerTestCase
         $manager = $this->createManager($this->createCatalog(), ['Selection' => [['ID' => 'L', 'Active' => false, 'Offset' => 0]]]);
 
         $this->expectExceptionMessage('No actions are selected');
-        $manager->RequestAction('TestActions', true);
+        $manager->RequestAction('RunActions', true);
     }
 
     public function testUnavailableCatalogIsReported(): void
@@ -64,7 +64,7 @@ class TestActionsTest extends WakeUpManagerTestCase
         $manager = $this->createManager(0, ['Selection' => [['ID' => 'L', 'Active' => true, 'Offset' => 0]]]);
 
         $this->expectExceptionMessage('The central actions are not available');
-        $manager->RequestAction('TestActions', true);
+        $manager->RequestAction('RunActions', true);
     }
 
     public function testUnreadableSelectionIsReported(): void
@@ -72,14 +72,14 @@ class TestActionsTest extends WakeUpManagerTestCase
         $manager = $this->createManager($this->createCatalog(), ['Selection' => '{broken']);
 
         $this->expectExceptionMessage('The action selection cannot be read');
-        $manager->RequestAction('TestActions', true);
+        $manager->RequestAction('RunActions', true);
     }
 
     public function testTileReceivesResultNotice(): void
     {
         $manager = $this->createManager($this->createCatalog(), ['Selection' => [['ID' => 'L', 'Active' => true, 'Offset' => 0]]]);
 
-        $manager->RequestAction('TestActions', 'tile');
+        $manager->RequestAction('RunActions', 'tile');
 
         $this->assertSame(['Light'], $this->runs());
         $this->assertSame(['notice' => '1 action(s) started', 'error' => false], $this->lastTileNotice($manager));
@@ -89,7 +89,7 @@ class TestActionsTest extends WakeUpManagerTestCase
     {
         $manager = $this->createManager($this->createCatalog(), ['Selection' => []]);
 
-        $manager->RequestAction('TestActions', 'tile');
+        $manager->RequestAction('RunActions', 'tile');
 
         $this->assertSame(['notice' => 'No actions are selected', 'error' => true], $this->lastTileNotice($manager));
     }
@@ -99,7 +99,7 @@ class TestActionsTest extends WakeUpManagerTestCase
         $manager = $this->createManager($this->createCatalog(), ['Selection' => []]);
 
         // Ergebnis erscheint per UpdateFormField im PopupAlert; keine Exception, die die Konsole nicht anzeigt
-        $manager->RequestAction('TestActions', 'console');
+        $manager->RequestAction('RunActions', 'console');
 
         $this->assertSame([], $this->runs());
     }
