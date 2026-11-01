@@ -6,6 +6,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+### Behoben
+
+- Kachel (Safari, z. B. iPhone/iPad): Der Button „Speichern“ der Vorlagen wurde abgeschnitten, und die Vorlagen-Spalte ragte über den rechten Rand. Die Auswahlliste steht jetzt immer in eigener Zeile.
+- Kachel: Ohne gespeicherte Vorlagen zeigt die Auswahlliste „Keine Vorlagen gespeichert“ statt eines leeren Feldes.
+
 ## [1.3.0] - 2026-11-01
 
 Beta.
