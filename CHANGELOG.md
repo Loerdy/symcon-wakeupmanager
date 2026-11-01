@@ -6,6 +6,10 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- **Bedingungen für Aktionen:** In WakeUpActions lässt sich je Aktion optional eine Bedingung festlegen (z. B. nur bei Dunkelheit über „Ist es Tag“ des Location Control, nur unterhalb einer Helligkeit oder nur, wenn ein anderes Licht aus ist). Die Aktion läuft nur, wenn die Bedingung im Moment der Ausführung erfüllt ist; sonst wird sie für diesen Weckvorgang übersprungen. Nicht auswertbare Bedingungen führen zum Überspringen mit Warnung im Meldungsfenster. Gilt auch für „Ausgewählte Aktionen jetzt ausführen“, dessen Rückmeldung übersprungene Aktionen mitzählt. Konsole und Kachel des Weckers kennzeichnen bedingte Aktionen.
+
 ### Geändert
 
 - **WakeUpActions:** Die Bezeichnung einer Aktion ist ein Pflichtfeld. Bestehende Aktionen ohne Bezeichnung bleiben gültig und erscheinen weiter als „Zentrale Aktion N“, bis sie beim nächsten Bearbeiten einen Namen erhalten.

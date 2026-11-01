@@ -346,14 +346,14 @@ class WakeUpManager extends IPSModuleStrict
                 $this->UpdateSelection($Value, null);
                 break;
             case 'RunActions':
-                ['started' => $started, 'message' => $message] = $this->RunSelectedActions();
+                ['error' => $error, 'message' => $message] = $this->RunSelectedActions();
                 // Rückmeldung je Aufrufer: Kachel per Hinweis, Konsole per Popup, Skripte per Exception im Fehlerfall.
                 if ($Value === 'tile') {
-                    $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $started === 0]));
+                    $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $error]));
                 } elseif ($Value === 'console') {
                     $this->UpdateFormField('RunResultText', 'caption', $message);
                     $this->UpdateFormField('RunResult', 'visible', true);
-                } elseif ($started === 0) {
+                } elseif ($error) {
                     throw new Exception($message);
                 }
                 break;
@@ -364,33 +364,41 @@ class WakeUpManager extends IPSModuleStrict
 
     // Startet die ausgewählten Aktionen sofort (z. B. zum Testen oder wenn man vor dem Wecker wach ist), unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz.
     // Protokoll, Zeitfenster und Timer der Weckroutine bleiben unverändert, das reguläre Wecken läuft normal.
-    // Liefert die Anzahl gestarteter Aktionen und eine übersetzte Meldung (bei 0 der Grund).
+    // Bedingungen der Aktionen gelten auch hier. Liefert eine übersetzte Meldung (Anzahl gestartet/übersprungen/
+    // fehlgeschlagen bzw. der Grund, warum nichts gestartet wurde) und ob es sich um einen Fehler handelt.
     private function RunSelectedActions(): array
     {
         $selection = $this->LoadSelection();
         if ($selection === null) {
-            return ['started' => 0, 'message' => $this->Translate('The action selection cannot be read')];
+            return ['error' => true, 'message' => $this->Translate('The action selection cannot be read')];
         }
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
         if ($catalog === null) {
-            return ['started' => 0, 'message' => $this->Translate('The central actions are not available')];
+            return ['error' => true, 'message' => $this->Translate('The central actions are not available')];
         }
 
         // Reihenfolge wie in der Konsole: nach Gruppen und zentraler Liste
-        $started = 0;
+        $results = ['started' => 0, 'skipped' => 0, 'failed' => 0];
         foreach ($catalog as $id => $definition) {
             if (!($selection[$id]['Active'] ?? false)) {
                 continue;
             }
             $this->SendDebug('Run', 'Starting ' . $definition['name'], 0);
-            $this->RunAction($definition['name'], $definition);
-            $started++;
+            $results[$this->RunAction($definition['name'], $definition)]++;
         }
-        if ($started === 0) {
-            return ['started' => 0, 'message' => $this->Translate('No actions are selected')];
+        if (array_sum($results) === 0) {
+            return ['error' => true, 'message' => $this->Translate('No actions are selected')];
         }
-        return ['started' => $started, 'message' => sprintf($this->Translate('%d action(s) started'), $started)];
+
+        $parts = [sprintf($this->Translate('%d action(s) started'), $results['started'])];
+        if ($results['skipped'] > 0) {
+            $parts[] = sprintf($this->Translate('%d skipped (condition not met)'), $results['skipped']);
+        }
+        if ($results['failed'] > 0) {
+            $parts[] = sprintf($this->Translate('%d failed'), $results['failed']);
+        }
+        return ['error' => $results['failed'] > 0, 'message' => implode(', ', $parts)];
     }
 
     private function SetWeekday(?array $value): void
@@ -735,7 +743,7 @@ class WakeUpManager extends IPSModuleStrict
                     if ($action['group'] !== $group) {
                         continue;
                     }
-                    $row = ['id' => (string) $id, 'name' => $action['name'], 'active' => $selection[$id]['Active'] ?? false];
+                    $row = ['id' => (string) $id, 'name' => $action['name'], 'active' => $selection[$id]['Active'] ?? false, 'condition' => $action['condition'] !== null];
                     if ($group === self::OFFSET_GROUP) {
                         $row['offset'] = $selection[$id]['Offset'] ?? 0;
                         if ($reference !== null) {
@@ -783,6 +791,7 @@ class WakeUpManager extends IPSModuleStrict
                 'ID'        => (string) $id,
                 'Name'      => $action['name'],
                 'Active'    => $selection[$id]['Active'] ?? false,
+                'Condition' => $action['condition'] !== null ? $this->Translate('yes') : '',
                 'deletable' => false
             ];
             if ($group === self::OFFSET_GROUP) {
@@ -797,6 +806,7 @@ class WakeUpManager extends IPSModuleStrict
                         'ID'        => (string) $id,
                         'Name'      => $this->Translate('No longer available'),
                         'Active'    => $entry['Active'],
+                        'Condition' => '',
                         'rowColor'  => '#FFC0C0',
                         'deletable' => true
                     ];
@@ -1025,7 +1035,8 @@ class WakeUpManager extends IPSModuleStrict
                 'name'       => $name,
                 'group'      => $group,
                 'actionID'   => $valid ? $action['actionID'] : null,
-                'parameters' => $valid ? ($action['parameters'] ?? []) : []
+                'parameters' => $valid ? ($action['parameters'] ?? []) : [],
+                'condition'  => $this->NormalizeCondition($row['Condition'] ?? null)
             ];
         }
         return $catalog;
@@ -1118,25 +1129,77 @@ class WakeUpManager extends IPSModuleStrict
         return $actions;
     }
 
-    private function RunAction(string $label, ?array $definition): void
+    // Startet eine Aktion, sofern ihre optionale Bedingung erfüllt ist. Liefert 'started', 'skipped' oder 'failed'.
+    private function RunAction(string $label, ?array $definition): string
     {
         if ($definition === null || $definition['actionID'] === null) {
             $this->SendDebug('Execute', $label . ' not executable (central action not available)', 0);
             $this->LogMessage(sprintf($this->Translate('Wake-up action not executable: %s'), $label), KL_WARNING);
-            return;
+            return 'failed';
+        }
+
+        if ($definition['condition'] !== null) {
+            $passing = $this->EvaluateCondition($definition['condition']);
+            if ($passing === null) {
+                // Nicht auswertbar (z. B. Variable gelöscht): lieber nicht schalten, aber sichtbar machen.
+                $this->LogMessage(sprintf($this->Translate('The condition of a wake-up action cannot be evaluated, action skipped: %s'), $label), KL_WARNING);
+                return 'skipped';
+            }
+            if (!$passing) {
+                $this->SendDebug('Execute', $label . ' skipped (condition not met)', 0);
+                return 'skipped';
+            }
         }
 
         try {
             if (IPS_RunAction($definition['actionID'], $definition['parameters'])) {
                 $this->SendDebug('Execute', $label . ' executed', 0);
-            } else {
-                $this->SendDebug('Execute', $label . ' failed', 0);
-                $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
+                return 'started';
             }
+            $this->SendDebug('Execute', $label . ' failed', 0);
         } catch (Throwable $e) {
             $this->SendDebug('Execute', $label . ' failed: ' . $e->getMessage(), 0);
-            $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
         }
+        $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
+        return 'failed';
+    }
+
+    // Prüft eine Bedingung im Format von SelectCondition; null, wenn sie nicht ausgewertet werden kann.
+    private function EvaluateCondition(string $condition): ?bool
+    {
+        $error = null;
+        set_error_handler(static function (int $number, string $message) use (&$error): bool
+        {
+            $error = $message;
+            return true;
+        });
+        try {
+            $passing = IPS_IsConditionPassing($condition);
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+        } finally {
+            restore_error_handler();
+        }
+
+        if ($error !== null || !is_bool($passing ?? null)) {
+            $this->SendDebug('Condition', 'Cannot be evaluated: ' . ($error ?? 'no result'), 0);
+            return null;
+        }
+        return $passing;
+    }
+
+    // Bedingung aus der zentralen Liste als JSON-String oder null, wenn keine gesetzt ist. Der Wert von
+    // SelectCondition ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
+    private function NormalizeCondition(mixed $condition): ?string
+    {
+        if (is_array($condition)) {
+            return count($condition) === 0 ? null : (string) json_encode($condition);
+        }
+        if (!is_string($condition) || trim($condition) === '' || json_decode($condition, true) === []) {
+            return null;
+        }
+        // Nicht lesbare Werte bleiben erhalten; die Auswertung scheitert dann kontrolliert (Aktion wird übersprungen).
+        return $condition;
     }
 
     private function ScheduleNext(array $config, int $now): void
