@@ -710,18 +710,27 @@ class WakeUpManager extends IPSModuleStrict
 
     private function Process(): void
     {
-        $this->ProcessSchedule();
+        $due = $this->ProcessSchedule();
         // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
         $this->UpdateTile();
+
+        // Aktionen außerhalb der Sperre ausführen, damit langsame Aktionen keine Bedienung blockieren. Sie sind
+        // bereits als ausgeführt gespeichert, ein paralleler Aufruf führt sie deshalb nicht erneut aus.
+        foreach ($due as $action) {
+            $this->RunAction($action['label'], $action['definition']);
+        }
     }
 
-    private function ProcessSchedule(): void
+    // Plant den nächsten Zeitpunkt und liefert die fälligen Aktionen, die der Aufrufer ausführen muss.
+    private function ProcessSchedule(): array
     {
         $semaphore = 'WUM_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($semaphore, 5000)) {
             $this->SendDebug('Process', 'Semaphore could not be entered', 0);
             $this->LogMessage($this->Translate('Wake-up routine could not be processed (semaphore busy)'), KL_WARNING);
-            return;
+            // Der Timer würde sonst erst nach seinem bisherigen, ggf. stundenlangen Intervall erneut auslösen.
+            $this->SetTimerInterval(self::TIMER, 1000);
+            return [];
         }
 
         try {
@@ -731,18 +740,19 @@ class WakeUpManager extends IPSModuleStrict
                 $this->ResetState();
                 $this->SetTimerInterval(self::TIMER, 0);
                 $this->SetStatus(IS_INACTIVE);
-                return;
+                return [];
             }
 
             $config = $this->LoadConfiguration();
             if ($config === null) {
                 $this->SetTimerInterval(self::TIMER, 0);
-                return;
+                return [];
             }
             $this->SetStatus($config['catalog'] === null && $this->ReadPropertyInteger('ActionInstance') > 0 ? self::STATUS_CATALOG_UNAVAILABLE : IS_ACTIVE);
 
-            $this->ExecuteDueActions($config, $now);
+            $due = $this->TakeDueActions($config, $now);
             $this->ScheduleNext($config, $now);
+            return $due;
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
@@ -931,7 +941,8 @@ class WakeUpManager extends IPSModuleStrict
         return $result;
     }
 
-    private function ExecuteDueActions(array $config, int $now): void
+    // Ermittelt die fälligen Aktionen und speichert sie als ausgeführt; ausgeführt werden sie vom Aufrufer.
+    private function TakeDueActions(array $config, int $now): array
     {
         $lastProcessed = $this->ReadAttributeInteger('LastProcessed');
         $windowStart = $lastProcessed < 0 ? $now : max($lastProcessed, $now - self::GRACE_PERIOD);
@@ -979,30 +990,34 @@ class WakeUpManager extends IPSModuleStrict
             $this->WriteAttributeInteger('LastProcessed', $now);
         }
 
+        $actions = [];
         foreach ($due as $event) {
-            $this->RunAction($event['action'], $config['catalog']);
+            $actions[] = [
+                'label'      => $event['action']['label'],
+                'definition' => $config['catalog'][$event['action']['key']] ?? null
+            ];
         }
+        return $actions;
     }
 
-    private function RunAction(array $action, ?array $catalog): void
+    private function RunAction(string $label, ?array $definition): void
     {
-        $definition = $catalog[$action['key']] ?? null;
         if ($definition === null || $definition['actionID'] === null) {
-            $this->SendDebug('Execute', $action['label'] . ' not executable (central action not available)', 0);
-            $this->LogMessage(sprintf($this->Translate('Wake-up action not executable: %s'), $action['label']), KL_WARNING);
+            $this->SendDebug('Execute', $label . ' not executable (central action not available)', 0);
+            $this->LogMessage(sprintf($this->Translate('Wake-up action not executable: %s'), $label), KL_WARNING);
             return;
         }
 
         try {
             if (IPS_RunAction($definition['actionID'], $definition['parameters'])) {
-                $this->SendDebug('Execute', $action['label'] . ' executed', 0);
+                $this->SendDebug('Execute', $label . ' executed', 0);
             } else {
-                $this->SendDebug('Execute', $action['label'] . ' failed', 0);
-                $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $action['label']), KL_WARNING);
+                $this->SendDebug('Execute', $label . ' failed', 0);
+                $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
             }
         } catch (Throwable $e) {
-            $this->SendDebug('Execute', $action['label'] . ' failed: ' . $e->getMessage(), 0);
-            $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $action['label']), KL_WARNING);
+            $this->SendDebug('Execute', $label . ' failed: ' . $e->getMessage(), 0);
+            $this->LogMessage(sprintf($this->Translate('Wake-up action failed: %s'), $label), KL_WARNING);
         }
     }
 
@@ -1022,6 +1037,18 @@ class WakeUpManager extends IPSModuleStrict
             foreach ($times as $time) {
                 if ($time > $now && ($next === null || $time < $next)) {
                     $next = $time;
+                }
+            }
+        }
+
+        // Die Kachel zeigt den Tag relativ zu heute ("Heute", "Morgen", Wochentag). Die Anzeige ändert sich zu Beginn
+        // des Vortags ("Morgen") und des Wecktags ("Heute"); zum ersten noch ausstehenden dieser Zeitpunkte neu berechnen.
+        if ($nextWakeUp !== null) {
+            $wakeDay = (new DateTimeImmutable('@' . $nextWakeUp))->setTimezone(new DateTimeZone(date_default_timezone_get()))->setTime(0, 0);
+            foreach ([$wakeDay->modify('-1 day')->getTimestamp(), $wakeDay->getTimestamp()] as $change) {
+                if ($change > $now) {
+                    $next = min($next, $change);
+                    break;
                 }
             }
         }

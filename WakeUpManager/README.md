@@ -71,7 +71,9 @@ Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie ben
 
 ## 6. Verhalten
 
-- Es gibt genau einen Timer, der immer auf den nächsten fälligen Zeitpunkt (nächste Aktion oder nächste Weckzeit) gesetzt wird. Er wird nach jeder Konfigurationsänderung, beim Start von IP-Symcon und nach jedem Auslösen neu berechnet. Es findet kein Polling statt.
+- Es gibt genau einen Timer pro Wecker, der immer auf den nächsten fälligen Zeitpunkt (nächste Aktion oder nächste Weckzeit) gesetzt wird. Er wird nach jeder Konfigurationsänderung, beim Start von IP-Symcon und nach jedem Auslösen neu berechnet. Es findet kein Polling statt.
+- Damit die Kachel nach Mitternacht „Heute“ bzw. „Morgen“ richtig anzeigt, löst der Timer zusätzlich um Mitternacht aus, wenn sich die Tagesangabe dadurch ändert (zu Beginn des Vortags und des Wecktags). Dabei werden keine Aktionen ausgeführt.
+- Die Aktionen werden nacheinander ausgeführt, nachdem sie als ausgeführt gespeichert wurden. Einstellungen lassen sich auch ändern, während lang laufende Aktionen noch laufen.
 - Die Zeitberechnung erfolgt in der lokalen Zeitzone von IP-Symcon. Der Zeitversatz ist eine echte Zeitspanne: Bei der Zeitumstellung liegt eine Aktion mit −60 Minuten immer genau eine Stunde vor der Weckzeit.
 - Fällt die Weckzeit in die bei der Umstellung auf Sommerzeit ausgelassene Stunde (z. B. 02:30), wird an diesem Tag zur nächsten gültigen Uhrzeit (03:30) geweckt. Bei der Umstellung auf Winterzeit wird eine doppelt vorhandene Uhrzeit nur einmal ausgelöst (erstes Auftreten).
 - Jede Aktion wird pro Weckvorgang höchstens einmal ausgeführt – auch bei verspätetem Timer, Neustart oder erneutem Übernehmen der Konfiguration. Wird nur der Zeitversatz oder die zentrale Definition einer bereits ausgeführten Aktion geändert, wird sie im selben Weckvorgang nicht erneut ausgeführt.

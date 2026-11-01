@@ -13,6 +13,9 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 ### Behoben
 
 - Kachel (kompakte Ansicht): Unterlängen im Wochentag (z. B. das „g“ in „Morgen“) werden nicht mehr abgeschnitten.
+- Kachel: Die Tagesangabe („Heute“, „Morgen“, Wochentag) wird um Mitternacht aktualisiert und zeigt nach Mitternacht nicht mehr den Stand vom Vortag.
+- Lang laufende Weckaktionen blockieren keine Bedienung mehr. Einstellungen in Kachel und Konsole lassen sich speichern, während die Aktionen noch laufen.
+- War die Weckroutine beim Auslösen des Timers kurzzeitig belegt, versucht der Wecker es nach einer Sekunde erneut. Bisher wartete er auf den nächsten geplanten Zeitpunkt, und fällige Aktionen konnten ausfallen.
 
 ## [1.0.0] - 2026-10-31
 
