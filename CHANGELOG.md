@@ -6,6 +6,19 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-01
+
+Beta.
+
+### Hinzugefügt
+
+- **Bedingungen für Aktionen:** In WakeUpActions lässt sich je Aktion optional eine Bedingung festlegen (z. B. nur bei Dunkelheit über „Ist es Tag“ des Location Control, nur unterhalb einer Helligkeit oder nur, wenn ein anderes Licht aus ist). Die Aktion läuft nur, wenn die Bedingung im Moment der Ausführung erfüllt ist; sonst wird sie für diesen Weckvorgang übersprungen. Nicht auswertbare Bedingungen führen zum Überspringen mit Warnung im Meldungsfenster. Gilt auch für „Ausgewählte Aktionen jetzt ausführen“, dessen Rückmeldung übersprungene Aktionen mitzählt. Konsole und Kachel des Weckers kennzeichnen bedingte Aktionen.
+
+### Geändert
+
+- **WakeUpActions:** Die Bezeichnung einer Aktion ist ein Pflichtfeld. Bestehende Aktionen ohne Bezeichnung bleiben gültig und erscheinen weiter als „Zentrale Aktion N“, bis sie beim nächsten Bearbeiten einen Namen erhalten.
+- **WakeUpManager:** Enthält die gespeicherte Aktionsauswahl ungültige Einträge, zeigt die Konsole einen Hinweis mit deren Anzahl. Die Einträge bleiben unverändert erhalten.
+
 ## [1.1.0] - 2026-11-01
 
 Beta.
@@ -50,6 +63,7 @@ Erstes Release (Beta).
 - Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
 - Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
 
-[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/Loerdy/symcon-wakeupmanager/releases/tag/v1.0.0

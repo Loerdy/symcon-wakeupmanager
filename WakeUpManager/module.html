@@ -342,6 +342,12 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+    .row .condition {
+        flex-shrink: 0;
+        font-size: 0.8em;
+        opacity: 0.7;
+        white-space: nowrap;
+    }
     .offset {
         display: flex;
         align-items: center;
@@ -805,6 +811,13 @@
         name.className = 'name';
         name.textContent = action.name;
         label.append(checkbox, name);
+        // Bedingte Aktionen laufen nur, wenn ihre Bedingung (in WakeUpActions festgelegt) erfüllt ist.
+        if (action.condition) {
+            const condition = document.createElement('span');
+            condition.className = 'condition';
+            condition.textContent = translate('With condition');
+            label.appendChild(condition);
+        }
         row.appendChild(label);
 
         if ('offset' in action) {

@@ -31,8 +31,9 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
-                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px'],",
+                "    ['type' => 'SelectCondition', 'name' => 'Condition', 'caption' => 'Condition (optional, e.g. only at night or when it is dark)', 'multi' => true, 'width' => '600px']",
                 "];"
             ]
         },
@@ -63,8 +64,9 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
-                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px'],",
+                "    ['type' => 'SelectCondition', 'name' => 'Condition', 'caption' => 'Condition (optional, e.g. only at night or when it is dark)', 'multi' => true, 'width' => '600px']",
                 "];"
             ]
         },
@@ -95,8 +97,9 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
-                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px'],",
+                "    ['type' => 'SelectCondition', 'name' => 'Condition', 'caption' => 'Condition (optional, e.g. only at night or when it is dark)', 'multi' => true, 'width' => '600px']",
                 "];"
             ]
         },
@@ -127,8 +130,9 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
-                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px'],",
+                "    ['type' => 'SelectCondition', 'name' => 'Condition', 'caption' => 'Condition (optional, e.g. only at night or when it is dark)', 'multi' => true, 'width' => '600px']",
                 "];"
             ]
         },
@@ -159,8 +163,9 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
-                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px'],",
+                "    ['type' => 'SelectCondition', 'name' => 'Condition', 'caption' => 'Condition (optional, e.g. only at night or when it is dark)', 'multi' => true, 'width' => '600px']",
                 "];"
             ]
         }

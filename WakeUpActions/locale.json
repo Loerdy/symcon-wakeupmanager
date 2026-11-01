@@ -9,6 +9,7 @@
             "Scripts": "Skripte",
             "Name": "Bezeichnung",
             "Action": "Aktion",
+            "Condition (optional, e.g. only at night or when it is dark)": "Bedingung (optional, z. B. nur nachts oder wenn es dunkel ist)",
             "Action list is ready": "Aktionsliste ist bereit",
             "The action list is invalid": "Die Aktionsliste ist fehlerhaft",
             "The previous action list could not be migrated": "Die bisherige Aktionsliste konnte nicht übernommen werden",

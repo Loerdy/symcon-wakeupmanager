@@ -76,7 +76,14 @@
             "Flip cards": "Klappzahlen",
             "Execute selected actions now": "Ausgewählte Aktionen jetzt ausführen",
             "No actions are selected": "Es sind keine Aktionen ausgewählt",
-            "%d action(s) started": "%d Aktion(en) gestartet"
+            "%d action(s) started": "%d Aktion(en) gestartet",
+            "%d entries of the stored action selection are invalid and will be ignored. They are kept unchanged.": "%d Einträge der gespeicherten Aktionsauswahl sind ungültig und werden ignoriert. Sie bleiben unverändert erhalten.",
+            "Condition": "Bedingung",
+            "yes": "ja",
+            "With condition": "Mit Bedingung",
+            "The condition of a wake-up action cannot be evaluated, action skipped: %s": "Die Bedingung einer Weckaktion kann nicht ausgewertet werden, Aktion übersprungen: %s",
+            "%d skipped (condition not met)": "%d übersprungen (Bedingung nicht erfüllt)",
+            "%d failed": "%d fehlgeschlagen"
         }
     }
 }
