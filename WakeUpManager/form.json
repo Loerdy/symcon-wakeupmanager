@@ -114,6 +114,49 @@
         },
         {
             "type": "Label",
+            "caption": "Templates (e.g. early and late shift): wake-up times, weekdays and action selection"
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "Select",
+                    "name": "TemplateSelect",
+                    "caption": "Template",
+                    "options": []
+                },
+                {
+                    "type": "Button",
+                    "name": "TemplateLoad",
+                    "caption": "Load template",
+                    "onClick": "IPS_RequestAction($id, 'LoadTemplate', json_encode(['Name' => $TemplateSelect, 'Source' => 'console']));"
+                },
+                {
+                    "type": "Button",
+                    "name": "TemplateDelete",
+                    "caption": "Delete template",
+                    "confirm": "Delete the selected template?",
+                    "onClick": "IPS_RequestAction($id, 'DeleteTemplate', json_encode(['Name' => $TemplateSelect, 'Source' => 'console']));"
+                }
+            ]
+        },
+        {
+            "type": "RowLayout",
+            "items": [
+                {
+                    "type": "ValidationTextBox",
+                    "name": "TemplateName",
+                    "caption": "Name of the new template"
+                },
+                {
+                    "type": "Button",
+                    "caption": "Save current settings as template",
+                    "onClick": "IPS_RequestAction($id, 'SaveTemplate', json_encode(['Name' => $TemplateName, 'Source' => 'console']));"
+                }
+            ]
+        },
+        {
+            "type": "Label",
             "name": "ActionsHint",
             "caption": "",
             "visible": false

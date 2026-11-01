@@ -17,6 +17,7 @@ Ein Wecker pro Instanz. Zur Weckzeit werden die ausgewählten Aktionen aus [Wake
 
 - Weckzeit, aktive Wochentage und globaler Ein/Aus-Schalter.
 - Optional eigene Weckzeit für das Wochenende (Sa–So).
+- Vorlagen, z. B. für Früh- und Spätschicht: Weckzeiten, Wochentage und Aktionsauswahl speichern und mit einem Klick laden.
 - Auswahl der auszuführenden Aktionen aus der zentralen Aktionsliste; Heizungsaktionen mit Zeitversatz in Minuten.
 - Eigene Kachel für die Kachel-Visualisierung mit wählbarer Darstellung der Weckzeit (Standard, Digital, Klappzahlen).
 - Keine Variablen, Ereignisse oder Skripte in der Objektstruktur; die Einstellungen werden in der Instanz gespeichert.
@@ -49,6 +50,7 @@ Ein Wecker pro Instanz. Zur Weckzeit werden die ausgewählten Aktionen aus [Wake
 | Eigene Weckzeit für das Wochenende | Wenn eingeschaltet, gilt die Weckzeit nur für Mo–Fr und Sa/So erhalten eine eigene Weckzeit. Beim ersten Einschalten wird die bisherige Weckzeit übernommen. |
 | Weckzeit Wochenende | Weckzeit für Sa/So bei eingeschalteter Option, gespeichert über **Weckzeit Wochenende speichern**. |
 | Aktive Wochentage | Wochentage, an denen geweckt wird (Standard Mo–Fr), auch bei getrenntem Wochenende einzeln wählbar. |
+| Vorlagen | Speichert die aktuellen Einstellungen unter einem Namen (z. B. „Frühschicht“) bzw. lädt oder löscht eine gespeicherte Vorlage, siehe [Vorlagen](#vorlagen). |
 | Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe eine Liste der zentralen Aktionen mit **Ausführen** (an/aus); bei Heizung zusätzlich **Zeitversatz**. Die Spalte **Bedingung** zeigt, ob für die Aktion in WakeUpActions eine Bedingung festgelegt ist. Leere Gruppen werden ausgeblendet. |
 | Ausgewählte Aktionen jetzt ausführen | Startet alle mit **Ausführen** markierten Aktionen sofort einmal, unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz – zum Testen neu eingerichteter Aktionen oder wenn man schon vor dem Wecker wach ist (dann den Wecker bei Bedarf ausschalten). Bedingungen der Aktionen gelten auch hier. Das Ergebnis (Anzahl gestarteter, wegen einer Bedingung übersprungener bzw. fehlgeschlagener Aktionen oder der Grund, warum nichts gestartet wurde) erscheint in einem Hinweisfenster. Das reguläre Wecken wird davon nicht beeinflusst. Derselbe Button steht in der großen Ansicht der Kachel. |
 
@@ -66,9 +68,18 @@ Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie ben
 
 - **Normale Größe:** Icon und nächste Weckzeit in einem gerahmten Feld, darunter der Tag („Heute“, „Morgen“ oder Wochentag; in der 1×1-Kachel in Kurzform wie „Mo“, ab der nächsten Größe ausgeschrieben). Antippen des Icons schaltet den Wecker ein bzw. aus. Ist der Wecker aus, erscheinen das Icon abgeblendet und `--:--` ohne weitere Beschriftung; bei einem Fehler der entsprechende Hinweis.
 - **Maximiert bzw. ausreichend groß** (ab ca. 500 × 400 Pixel, im Hochformat ab ca. 340 × 600 Pixel): Einstellungen mit Aktiv-Schalter, Weckzeit, Wochentagen, der Option für ein getrenntes Wochenende (dann je ein Block Mo–Fr und Sa–So mit eigener Weckzeit) und der Aktionsauswahl je Gruppe. Bei Heizung zusätzlich mit Zeitversatz und der sich daraus ergebenden Startzeit, bezogen auf das nächste Wecken (bzw. die heutige Weckzeit, wenn kein nächstes Wecken ansteht), gegebenenfalls mit „(Vortag)“ oder „(Folgetag)“. Nicht ausgewählte Heizungsaktionen zeigen `--:--`. Darunter startet **Ausgewählte Aktionen jetzt ausführen** die ausgewählten Aktionen sofort; das Ergebnis erscheint einige Sekunden neben dem Button.
+- **Vorlagen:** In der großen Ansicht lassen sich Vorlagen laden, löschen (zweimal klicken) und die aktuellen Einstellungen als Vorlage speichern.
 - **Darstellung der Weckzeit:** In der großen Ansicht wählt der Benutzer, wie die kleine Kachel die Weckzeit zeigt: **Standard** (Schrift der Visualisierung), **Digital** (7-Segment-Anzeige) oder **Klappzahlen** (wie ein Radiowecker; ändert sich die Zeit, klappen die betroffenen Ziffern um). Alle Darstellungen verwenden die Farben des Visualisierungs-Designs und kommen ohne externe Schriften aus. Bei aktivierter Einstellung „Bewegung reduzieren“ des Geräts wird ohne Animation umgeschaltet.
 
 Änderungen in der Kachel werden vom Modul geprüft und sofort gespeichert, genau wie im unteren Bereich der Konsole. Ungültige Eingaben werden abgelehnt und die Kachel zeigt wieder den gespeicherten Stand. Nicht mehr vorhandene Aktionen werden nur in der Konsole angezeigt und dort gelöscht.
+
+### Vorlagen
+
+Eine Vorlage speichert Weckzeit, die Option „eigene Weckzeit für das Wochenende“ samt Wochenend-Weckzeit, die aktiven Wochentage und die Aktionsauswahl mit den Zeitversätzen der Heizung. Nicht gespeichert werden der Aktiv-Schalter, die Darstellung der Weckzeit sowie Icon und zentrale Aktionsinstanz; das Laden einer Vorlage schaltet den Wecker also nicht ein oder aus.
+
+- Bis zu 20 Vorlagen je Wecker, Namen mit 1 bis 40 Zeichen. Wird unter einem vorhandenen Namen gespeichert (Groß-/Kleinschreibung egal), wird diese Vorlage überschrieben.
+- Laden wirkt wie eine Einstellungsänderung: Zeitpunkte, die dadurch in der Vergangenheit liegen, werden nicht nachgeholt, und am selben Tag bereits ausgeführte Aktionen laufen nicht erneut.
+- Enthält eine Vorlage Aktionen, die es in WakeUpActions nicht mehr gibt, erscheinen sie nach dem Laden wie gewohnt als „Nicht mehr vorhanden“.
 
 ## 6. Verhalten
 
@@ -111,4 +122,5 @@ Das Modul stellt keine eigenen `WUM_*`-Befehle bereit. Die Einstellungen lassen 
 | `SetWakeUpTimeWeekend` | Uhrzeit `"HH:MM"` | `IPS_RequestAction(12345, 'SetWakeUpTimeWeekend', '08:30');` |
 | `SetWeekday` | JSON `{"Day": 1–7, "Active": bool}` (1 = Montag) | `IPS_RequestAction(12345, 'SetWeekday', json_encode(['Day' => 6, 'Active' => true]));` |
 | `SetDisplayStyle` | `"standard"`, `"digital"` oder `"flip"` | `IPS_RequestAction(12345, 'SetDisplayStyle', 'flip');` |
+| `SaveTemplate`, `LoadTemplate`, `DeleteTemplate` | Name der Vorlage | `IPS_RequestAction(12345, 'LoadTemplate', 'Frühschicht');` |
 | `RunActions` | `true` (Fehler als Exception; `"console"` bzw. `"tile"` nutzen Konsole und Kachel für ihre Rückmeldung) | `IPS_RequestAction(12345, 'RunActions', true);` |

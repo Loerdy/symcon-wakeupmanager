@@ -257,7 +257,7 @@
         margin: 0;
         accent-color: var(--accent-color, currentColor);
     }
-    input[type="time"], input[type="number"] {
+    input[type="time"], input[type="number"], input[type="text"], select {
         font: inherit;
         color: inherit;
         background: transparent;
@@ -266,7 +266,7 @@
         padding: 4px 8px;
         outline: none;
     }
-    input[type="time"]:focus, input[type="number"]:focus {
+    input[type="time"]:focus, input[type="number"]:focus, input[type="text"]:focus, select:focus {
         border-color: var(--accent-color, currentColor);
     }
     /* Browser-Pfeile passen farblich nicht zum Design; Eingabe per Tastatur */
@@ -369,7 +369,7 @@
     .run-actions[hidden] {
         display: none;
     }
-    .run-actions button {
+    button.action {
         font: inherit;
         color: inherit;
         padding: 6px 12px;
@@ -378,8 +378,23 @@
         background: transparent;
         cursor: pointer;
     }
-    .run-actions button:hover, .run-actions button:focus-visible {
+    button.action:hover, button.action:focus-visible {
         border-color: var(--accent-color, currentColor);
+    }
+    .templates {
+        display: grid;
+        gap: 8px;
+    }
+    .templates select, .templates input[type="text"] {
+        min-width: 12em;
+    }
+    select option {
+        color: var(--content-color, CanvasText);
+        background: var(--card-color, Canvas);
+    }
+    button.action:disabled {
+        opacity: 0.5;
+        cursor: default;
     }
     .notice {
         opacity: 0.8;
@@ -432,10 +447,23 @@
         <div class="caption">Display of the wake-up time</div>
         <div class="choices" id="styles"></div>
     </div>
+    <div class="section templates">
+        <div class="caption">Templates</div>
+        <div class="block">
+            <select id="templateSelect"></select>
+            <button type="button" class="action" id="templateLoad">Load</button>
+            <button type="button" class="action" id="templateDelete">Delete</button>
+        </div>
+        <div class="block">
+            <input type="text" id="templateName" maxlength="40">
+            <button type="button" class="action" id="templateSave">Save as template</button>
+        </div>
+        <span class="notice" id="templateNotice" aria-live="polite"></span>
+    </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
     <div class="section run-actions" id="runBlock" hidden>
-        <button type="button" id="runButton">Execute selected actions now</button>
+        <button type="button" class="action" id="runButton">Execute selected actions now</button>
         <span class="notice" id="runNotice" aria-live="polite"></span>
     </div>
 </div>
@@ -491,9 +519,13 @@
 
     function handleMessage(data) {
         const message = JSON.parse(data);
-        // Ergebnis von "Ausgewählte Aktionen jetzt ausführen"; der übrige Zustand bleibt unverändert.
+        // Ergebnis einer Schaltfläche (Aktionen ausführen, Vorlagen); der übrige Zustand bleibt unverändert.
         if (typeof message.notice === 'string') {
             showNotice(message.notice, message.error === true);
+            if (!message.error && noticeTarget === 'templateNotice' && savedTemplate) {
+                document.getElementById('templateName').value = '';
+            }
+            savedTemplate = false;
             return;
         }
         state = message;
@@ -501,9 +533,12 @@
     }
 
     let noticeTimer = null;
+    // Hinweis erscheint bei der Schaltfläche, die zuletzt gedrückt wurde.
+    let noticeTarget = 'runNotice';
+    let savedTemplate = false;
 
     function showNotice(text, error) {
-        const notice = document.getElementById('runNotice');
+        const notice = document.getElementById(noticeTarget);
         notice.textContent = text;
         notice.classList.toggle('error', error);
         clearTimeout(noticeTimer);
@@ -561,6 +596,7 @@
         renderTime(compactTime, hasNext ? state.next.time : '--:--');
         compactTime.classList.toggle('muted', !hasNext);
         renderStyles();
+        renderTemplates();
         if (hasNext) {
             // Beide Formen; welche sichtbar ist, entscheidet die Kachelbreite (CSS).
             const shortDay = document.createElement('span');
@@ -735,6 +771,41 @@
         }
     }
 
+    let shownTemplates = null;
+
+    // Auswahlliste der Vorlagen nur bei Änderung neu aufbauen; die Auswahl bleibt dabei erhalten.
+    function renderTemplates() {
+        const select = document.getElementById('templateSelect');
+        const names = Array.isArray(state.templates) ? state.templates : [];
+        const key = JSON.stringify(names);
+        if (key !== shownTemplates) {
+            if (document.activeElement === select) {
+                deferred = true;
+            } else {
+                shownTemplates = key;
+                const selected = select.value;
+                select.replaceChildren(...names.map(function (name) {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    return option;
+                }));
+                if (names.includes(selected)) {
+                    select.value = selected;
+                }
+            }
+        }
+        for (const id of ['templateSelect', 'templateLoad', 'templateDelete']) {
+            document.getElementById(id).disabled = names.length === 0;
+        }
+        document.getElementById('templateName').placeholder = translate('Name of the new template');
+    }
+
+    function sendTemplate(ident, name) {
+        noticeTarget = 'templateNotice';
+        requestAction(ident, JSON.stringify({ Name: name, Source: 'tile' }));
+    }
+
     let iconName = null;
 
     function renderIcon() {
@@ -870,7 +941,42 @@
     });
 
     document.getElementById('runButton').addEventListener('click', function () {
+        noticeTarget = 'runNotice';
         requestAction('RunActions', 'tile');
+    });
+
+    document.getElementById('templateLoad').addEventListener('click', function () {
+        sendTemplate('LoadTemplate', document.getElementById('templateSelect').value);
+    });
+
+    // Löschen in zwei Schritten: erster Klick fragt nach, zweiter Klick innerhalb von 4 Sekunden löscht.
+    let deleteTimer = null;
+    document.getElementById('templateDelete').addEventListener('click', function (event) {
+        const button = event.currentTarget;
+        if (button.dataset.armed === '1') {
+            clearTimeout(deleteTimer);
+            button.dataset.armed = '';
+            button.textContent = translate('Delete');
+            sendTemplate('DeleteTemplate', document.getElementById('templateSelect').value);
+            return;
+        }
+        button.dataset.armed = '1';
+        button.textContent = translate('Really delete?');
+        deleteTimer = setTimeout(function () {
+            button.dataset.armed = '';
+            button.textContent = translate('Delete');
+        }, 4000);
+    });
+
+    document.getElementById('templateSave').addEventListener('click', function () {
+        const name = document.getElementById('templateName').value.trim();
+        noticeTarget = 'templateNotice';
+        if (name === '') {
+            showNotice(translate('Please enter a name with 1 to 40 characters'), true);
+            return;
+        }
+        savedTemplate = true;
+        sendTemplate('SaveTemplate', name);
     });
 
     document.getElementById('active').addEventListener('change', function (event) {

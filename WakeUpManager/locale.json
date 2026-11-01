@@ -83,7 +83,27 @@
             "With condition": "Mit Bedingung",
             "The condition of a wake-up action cannot be evaluated, action skipped: %s": "Die Bedingung einer Weckaktion kann nicht ausgewertet werden, Aktion übersprungen: %s",
             "%d skipped (condition not met)": "%d übersprungen (Bedingung nicht erfüllt)",
-            "%d failed": "%d fehlgeschlagen"
+            "%d failed": "%d fehlgeschlagen",
+            "Templates (e.g. early and late shift): wake-up times, weekdays and action selection": "Vorlagen (z. B. Früh- und Spätschicht): Weckzeiten, Wochentage und Aktionsauswahl",
+            "Template": "Vorlage",
+            "Templates": "Vorlagen",
+            "Load template": "Vorlage laden",
+            "Delete template": "Vorlage löschen",
+            "Delete the selected template?": "Ausgewählte Vorlage löschen?",
+            "Name of the new template": "Name der neuen Vorlage",
+            "Save current settings as template": "Aktuelle Einstellungen als Vorlage speichern",
+            "Load": "Laden",
+            "Delete": "Löschen",
+            "Really delete?": "Wirklich löschen?",
+            "Save as template": "Als Vorlage speichern",
+            "Please enter a name with 1 to 40 characters": "Bitte einen Namen mit 1 bis 40 Zeichen eingeben",
+            "The template does not exist": "Die Vorlage existiert nicht",
+            "No more than %d templates can be saved": "Es können höchstens %d Vorlagen gespeichert werden",
+            "The saved templates cannot be read": "Die gespeicherten Vorlagen sind nicht lesbar",
+            "The template cannot be read": "Die Vorlage ist nicht lesbar",
+            "Template \"%s\" saved": "Vorlage „%s“ gespeichert",
+            "Template \"%s\" loaded": "Vorlage „%s“ geladen",
+            "Template \"%s\" deleted": "Vorlage „%s“ gelöscht"
         }
     }
 }
