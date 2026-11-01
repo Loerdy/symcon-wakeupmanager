@@ -8,7 +8,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ### Geändert
 
-- Kachel (kompakte Ansicht): Die Abstände zwischen Icon, Weckzeit und Wochentag wachsen jetzt mit der Kachelgröße. Das Icon für den Aktiv-Schalter ist größer und reagiert beim Darüberfahren mit der Maus, damit es als Schalter erkennbar ist.
+- Kachel (kompakte Ansicht): Die Abstände zwischen Icon, Weckzeit und Wochentag wachsen jetzt mit der Kachelgröße. Das Icon für den Aktiv-Schalter ist größer und reagiert beim Darüberfahren mit der Maus, damit es als Schalter erkennbar ist. Der Inhalt sitzt etwas höher.
+
+### Behoben
+
+- Kachel (kompakte Ansicht): Unterlängen im Wochentag (z. B. das „g“ in „Morgen“) werden nicht mehr abgeschnitten.
 
 ## [1.0.0] - 2026-10-31
 

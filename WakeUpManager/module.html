@@ -33,14 +33,14 @@
         container-type: size;
         /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
            und Raum für Icon und Tag. */
-        --time-size: min(31cqw, 33cqh);
+        --time-size: min(31cqw, 31cqh);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
         /* Abstände wachsen mit der Kachel, damit Icon und Tag nicht am Zeitfeld kleben */
-        gap: min(6cqw, 6cqh);
+        gap: min(5cqw, 5cqh);
     }
     .compact .icon {
         font-size: min(18cqw, 19cqh);
@@ -185,6 +185,10 @@
     .compact .day {
         font-size: min(11cqw, 14cqh);
         line-height: 1.2;
+        /* Platz für Unterlängen (g, y), die sonst durch overflow: hidden abgeschnitten werden */
+        padding-bottom: 0.2em;
+        /* Hebt den Inhalt leicht an, damit er unter der Titelzeile optisch mittig wirkt */
+        margin-bottom: 5cqh;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
