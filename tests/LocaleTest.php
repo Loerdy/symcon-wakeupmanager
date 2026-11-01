@@ -66,7 +66,7 @@ class LocaleTest extends TestCase
                 $texts = [...$texts, ...$matches[1]];
             }
             // Statische Texte, die translateHTML beim Laden übersetzt
-            preg_match_all('/<(?:span|div)[^>]*>([^<{}]*[A-Za-z][^<{}]*)<\/(?:span|div)>/', $html, $matches);
+            preg_match_all('/<(?:span|div|button)[^>]*>([^<{}]*[A-Za-z][^<{}]*)<\/(?:span|div|button)>/', $html, $matches);
             $texts = [...$texts, ...array_map('trim', $matches[1])];
             preg_match_all('/title="([^"]+)"/', $html, $matches);
             $texts = [...$texts, ...$matches[1]];

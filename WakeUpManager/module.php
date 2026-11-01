@@ -345,7 +345,16 @@ class WakeUpManager extends IPSModuleStrict
                 $this->UpdateSelection($Value, null);
                 break;
             case 'TestActions':
-                $this->TestActions();
+                ['started' => $started, 'message' => $message] = $this->TestActions();
+                // Rückmeldung je Aufrufer: Kachel per Hinweis, Konsole per Popup, Skripte per Exception im Fehlerfall.
+                if ($Value === 'tile') {
+                    $this->UpdateVisualizationValue((string) json_encode(['notice' => $message, 'error' => $started === 0]));
+                } elseif ($Value === 'console') {
+                    $this->UpdateFormField('TestResultText', 'caption', $message);
+                    $this->UpdateFormField('TestResult', 'visible', true);
+                } elseif ($started === 0) {
+                    throw new Exception($message);
+                }
                 break;
             default:
                 throw new Exception('Invalid Ident');
@@ -354,16 +363,17 @@ class WakeUpManager extends IPSModuleStrict
 
     // Startet die ausgewählten Aktionen sofort zum Testen, unabhängig von Aktiv-Schalter, Weckzeit und Zeitversatz.
     // Protokoll, Zeitfenster und Timer der Weckroutine bleiben unverändert, das reguläre Wecken läuft normal.
-    private function TestActions(): void
+    // Liefert die Anzahl gestarteter Aktionen und eine übersetzte Meldung (bei 0 der Grund).
+    private function TestActions(): array
     {
         $selection = $this->LoadSelection();
         if ($selection === null) {
-            throw new Exception($this->Translate('The action selection cannot be read'));
+            return ['started' => 0, 'message' => $this->Translate('The action selection cannot be read')];
         }
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
         if ($catalog === null) {
-            throw new Exception($this->Translate('The central actions are not available'));
+            return ['started' => 0, 'message' => $this->Translate('The central actions are not available')];
         }
 
         // Reihenfolge wie in der Konsole: nach Gruppen und zentraler Liste
@@ -377,8 +387,9 @@ class WakeUpManager extends IPSModuleStrict
             $started++;
         }
         if ($started === 0) {
-            throw new Exception($this->Translate('No actions are selected'));
+            return ['started' => 0, 'message' => $this->Translate('No actions are selected')];
         }
+        return ['started' => $started, 'message' => sprintf($this->Translate('%d action(s) started'), $started)];
     }
 
     private function SetWeekday(?array $value): void

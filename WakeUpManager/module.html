@@ -352,6 +352,34 @@
         opacity: 0.7;
         font-variant-numeric: tabular-nums;
     }
+    .test {
+        display: flex;
+        align-items: center;
+        gap: 8px 12px;
+        flex-wrap: wrap;
+    }
+    .test[hidden] {
+        display: none;
+    }
+    .test button {
+        font: inherit;
+        color: inherit;
+        padding: 6px 12px;
+        border: 1px solid var(--line-color);
+        border-radius: 6px;
+        background: transparent;
+        cursor: pointer;
+    }
+    .test button:hover, .test button:focus-visible {
+        border-color: var(--accent-color);
+    }
+    .notice {
+        opacity: 0.8;
+    }
+    .notice.error {
+        opacity: 1;
+        font-weight: 600;
+    }
 </style>
 
 <div class="view compact">
@@ -398,6 +426,10 @@
     </div>
     <div class="section muted" id="hint"></div>
     <div id="groups"></div>
+    <div class="section test" id="testBlock" hidden>
+        <button type="button" id="testButton">Execute selected actions now (test)</button>
+        <span class="notice" id="testNotice" aria-live="polite"></span>
+    </div>
 </div>
 
 <script>
@@ -450,8 +482,26 @@
     let deferred = false;
 
     function handleMessage(data) {
-        state = JSON.parse(data);
+        const message = JSON.parse(data);
+        // Ergebnis des Test-Buttons; der übrige Zustand bleibt unverändert.
+        if (typeof message.notice === 'string') {
+            showNotice(message.notice, message.error === true);
+            return;
+        }
+        state = message;
         render();
+    }
+
+    let noticeTimer = null;
+
+    function showNotice(text, error) {
+        const notice = document.getElementById('testNotice');
+        notice.textContent = text;
+        notice.classList.toggle('error', error);
+        clearTimeout(noticeTimer);
+        noticeTimer = setTimeout(function () {
+            notice.textContent = '';
+        }, 6000);
     }
 
     function send(ident, value) {
@@ -547,6 +597,7 @@
         }
         document.getElementById('hint').textContent = state.hint ? translate(HINTS[state.hint])
             : (state.groups.length === 0 ? translate('No central actions available.') : '');
+        document.getElementById('testBlock').hidden = state.groups.length === 0;
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
@@ -801,6 +852,10 @@
             event.preventDefault();
             toggleActive();
         }
+    });
+
+    document.getElementById('testButton').addEventListener('click', function () {
+        requestAction('TestActions', 'tile');
     });
 
     document.getElementById('active').addEventListener('change', function (event) {

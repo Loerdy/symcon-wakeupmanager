@@ -74,4 +74,46 @@ class TestActionsTest extends WakeUpManagerTestCase
         $this->expectExceptionMessage('The action selection cannot be read');
         $manager->RequestAction('TestActions', true);
     }
+
+    public function testTileReceivesResultNotice(): void
+    {
+        $manager = $this->createManager($this->createCatalog(), ['Selection' => [['ID' => 'L', 'Active' => true, 'Offset' => 0]]]);
+
+        $manager->RequestAction('TestActions', 'tile');
+
+        $this->assertSame(['Light'], $this->runs());
+        $this->assertSame(['notice' => '1 action(s) started', 'error' => false], $this->lastTileNotice($manager));
+    }
+
+    public function testTileReceivesErrorNoticeInsteadOfException(): void
+    {
+        $manager = $this->createManager($this->createCatalog(), ['Selection' => []]);
+
+        $manager->RequestAction('TestActions', 'tile');
+
+        $this->assertSame(['notice' => 'No actions are selected', 'error' => true], $this->lastTileNotice($manager));
+    }
+
+    public function testConsoleReceivesErrorAsPopupInsteadOfException(): void
+    {
+        $manager = $this->createManager($this->createCatalog(), ['Selection' => []]);
+
+        // Ergebnis erscheint per UpdateFormField im PopupAlert; keine Exception, die die Konsole nicht anzeigt
+        $manager->RequestAction('TestActions', 'console');
+
+        $this->assertSame([], $this->runs());
+    }
+
+    private function lastTileNotice(WakeUpManager $manager): ?array
+    {
+        $notice = null;
+        foreach ($manager->getMessages() as $message) {
+            // 10541: Nachricht an die Visualisierung (UpdateVisualizationValue)
+            $data = $message['Message'] === 10541 ? json_decode($message['Data'][0], true) : null;
+            if (is_array($data) && isset($data['notice'])) {
+                $notice = $data;
+            }
+        }
+        return $notice;
+    }
 }

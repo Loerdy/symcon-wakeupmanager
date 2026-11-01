@@ -75,7 +75,8 @@
             "Digital": "Digital",
             "Flip cards": "Klappzahlen",
             "Execute selected actions now (test)": "Ausgewählte Aktionen jetzt ausführen (Test)",
-            "No actions are selected": "Es sind keine Aktionen ausgewählt"
+            "No actions are selected": "Es sind keine Aktionen ausgewählt",
+            "%d action(s) started": "%d Aktion(en) gestartet"
         }
     }
 }

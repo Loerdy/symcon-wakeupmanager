@@ -283,7 +283,21 @@
         {
             "type": "Button",
             "caption": "Execute selected actions now (test)",
-            "onClick": "IPS_RequestAction($id, 'TestActions', true);"
+            "onClick": "IPS_RequestAction($id, 'TestActions', 'console');"
+        },
+        {
+            "type": "PopupAlert",
+            "name": "TestResult",
+            "visible": false,
+            "popup": {
+                "items": [
+                    {
+                        "type": "Label",
+                        "name": "TestResultText",
+                        "caption": ""
+                    }
+                ]
+            }
         }
     ],
     "status": [
