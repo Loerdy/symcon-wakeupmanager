@@ -33,20 +33,25 @@
         container-type: size;
         /* Gemeinsame Höhe des Zeitfelds für alle Darstellungen; so bleibt ausreichend Breite für Klappzahlen
            und Raum für Icon und Tag. */
-        --time-size: min(31cqw, 36cqh);
+        --time-size: min(31cqw, 33cqh);
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         text-align: center;
-        gap: 3px;
+        /* Abstände wachsen mit der Kachel, damit Icon und Tag nicht am Zeitfeld kleben */
+        gap: min(6cqw, 6cqh);
     }
     .compact .icon {
-        font-size: min(13cqw, 14cqh);
+        font-size: min(18cqw, 19cqh);
         line-height: 1;
         color: var(--accent-color);
         cursor: pointer;
         padding: 2px;
+        transition: opacity 0.15s;
+    }
+    .compact .icon:hover {
+        opacity: 0.75;
     }
     .compact .icon.off {
         color: inherit;
