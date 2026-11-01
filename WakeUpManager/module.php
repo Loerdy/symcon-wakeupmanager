@@ -437,11 +437,30 @@ class WakeUpManager extends IPSModuleStrict
             throw new Exception($this->Translate('The setting could not be saved, please try again'));
         }
         try {
+            // Was nach der bisherigen Einstellung bis jetzt fällig war, wird noch ausgeführt. Danach beginnt das
+            // Zeitfenster jetzt: Zeitpunkte, die erst durch die Änderung in der Vergangenheit liegen, werden nicht nachgeholt.
+            $due = $this->TakeCurrentDueActions();
             $write();
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
-        $this->Process();
+        $this->Process($due);
+    }
+
+    // Fällige Aktionen nach der gespeicherten Einstellung; nur unter der Sperre aufrufen.
+    private function TakeCurrentDueActions(): array
+    {
+        if (!$this->ReadAttributeBoolean('Active')) {
+            return [];
+        }
+        $now = time();
+        $config = $this->LoadConfiguration();
+        $due = $config === null ? [] : $this->TakeDueActions($config, $now);
+        // Auch bei bisher ungültiger Einstellung (z. B. kein Wochentag) ab jetzt rechnen.
+        if ($this->ReadAttributeInteger('LastProcessed') < $now) {
+            $this->WriteAttributeInteger('LastProcessed', $now);
+        }
+        return $due;
     }
 
     private function RejectValue(string $ident): never
@@ -708,9 +727,10 @@ class WakeUpManager extends IPSModuleStrict
         return is_array($list) && array_is_list($list) ? $list : null;
     }
 
-    private function Process(): void
+    // $pending: bereits als ausgeführt gespeicherte Aktionen, die noch auszuführen sind.
+    private function Process(array $pending = []): void
     {
-        $due = $this->ProcessSchedule();
+        $due = [...$pending, ...$this->ProcessSchedule()];
         // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
         $this->UpdateTile();
 
