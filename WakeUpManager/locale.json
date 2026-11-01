@@ -99,7 +99,7 @@
             "Load": "Laden",
             "Delete": "Löschen",
             "Really delete?": "Wirklich löschen?",
-            "Save as template": "Als Vorlage speichern",
+            "Save": "Speichern",
             "Please enter a name with 1 to 40 characters": "Bitte einen Namen mit 1 bis 40 Zeichen eingeben",
             "The template does not exist": "Die Vorlage existiert nicht",
             "No more than %d templates can be saved": "Es können höchstens %d Vorlagen gespeichert werden",

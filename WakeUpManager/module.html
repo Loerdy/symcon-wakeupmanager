@@ -389,16 +389,28 @@
     .templates select, .templates input[type="text"] {
         min-width: 12em;
     }
-    /* Ab ausreichender Breite stehen die Vorlagen rechts neben den Einstellungen; Auswahl und Namensfeld
-       dann jeweils in voller Spaltenbreite, die Schaltflächen darunter. */
+    .templates .save {
+        flex-wrap: nowrap;
+    }
+    .templates .save input[type="text"] {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    /* Ab ausreichender Breite stehen die Vorlagen als schmale Spalte direkt rechts neben den Einstellungen
+       (nicht über die ganze Restbreite), abgesetzt durch eine feine Linie. */
     @media (min-width: 760px) {
         .settings-top {
             display: grid;
-            grid-template-columns: minmax(0, auto) minmax(220px, 1fr);
+            grid-template-columns: max-content minmax(240px, 360px);
+            justify-content: start;
             gap: 0 32px;
             align-items: start;
         }
-        .settings-top .templates select, .settings-top .templates input[type="text"] {
+        .settings-top .templates {
+            padding-left: 32px;
+            border-left: 1px solid var(--soft-line-color);
+        }
+        .settings-top .templates select {
             flex: 1 1 100%;
             min-width: 0;
         }
@@ -474,9 +486,9 @@
             <button type="button" class="action" id="templateOverwrite">Overwrite</button>
             <button type="button" class="action" id="templateDelete">Delete</button>
         </div>
-        <div class="block">
+        <div class="block save">
             <input type="text" id="templateName" maxlength="40">
-            <button type="button" class="action" id="templateSave">Save as template</button>
+            <button type="button" class="action" id="templateSave">Save</button>
         </div>
         <span class="notice" id="templateNotice" aria-live="polite"></span>
     </div>
