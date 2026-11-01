@@ -81,7 +81,7 @@ Der Wecker bringt eine eigene Kachel für die Kachel-Visualisierung mit. Sie ben
 - **Verpasste Zeitpunkte:** Noch nicht verarbeitete Zeitpunkte, die höchstens 5 Minuten zurückliegen, werden nachgeholt (z. B. kurzer Neustart, verzögerter Timer). Ältere Zeitpunkte werden nicht nachgeholt; das wird im Meldungsfenster als Warnung protokolliert.
 - **Einstellungsänderungen holen nichts nach:** Wird die Weckzeit auf eine Uhrzeit in der Vergangenheit gestellt (oder ein Wochentag bzw. ein Zeitversatz so geändert, dass ein Zeitpunkt bereits vorbei ist), gilt die Änderung erst ab dem nächsten Zeitpunkt in der Zukunft. Was nach der bisherigen Einstellung bereits fällig war, wird noch ausgeführt. So wird nach dem Wecken auch durch Umstellen auf eine frühere Uhrzeit nicht erneut geweckt.
 - Beim (Re-)Aktivieren des Weckers wird nichts nachgeholt, auch nicht innerhalb der 5 Minuten. Zeitpunkte während der Deaktivierung entfallen.
-- Gespeicherte Auswahleinträge, die nicht gelesen werden können (z. B. ohne ID oder mit ungültigem Zeitversatz), werden beim Wecken ignoriert und im Debug protokolliert, aber nicht gelöscht. Änderungen an der Auswahl betreffen nur die jeweils geänderte Aktion.
+- Gespeicherte Auswahleinträge, die nicht gelesen werden können (z. B. ohne ID oder mit ungültigem Zeitversatz), werden beim Wecken ignoriert, im Debug protokolliert und in der Konsole mit ihrer Anzahl als Hinweis angezeigt, aber nicht gelöscht. Änderungen an der Auswahl betreffen nur die jeweils geänderte Aktion.
 - Schlägt eine Aktion fehl, werden die übrigen Aktionen trotzdem ausgeführt. Der Fehler erscheint im Debug und als Warnung im Meldungsfenster.
 
 ## 7. Statuscodes

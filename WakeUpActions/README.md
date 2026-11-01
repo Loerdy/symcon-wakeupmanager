@@ -31,7 +31,7 @@ Zentrale Liste der Aktionen, aus denen die Wecker ([WakeUpManager](../WakeUpMana
 
 | Liste | Beschreibung |
 | --- | --- |
-| Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe die Aktionen mit **Bezeichnung** und **Aktion**. Hinzufügen, Bearbeiten, Löschen und Umsortieren direkt in der Liste; wirksam mit **Übernehmen**. |
+| Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe die Aktionen mit **Bezeichnung** und **Aktion**. Hinzufügen, Bearbeiten, Löschen und Umsortieren direkt in der Liste; wirksam mit **Übernehmen**. Die Bezeichnung ist ein Pflichtfeld; Aktionen aus früheren Versionen ohne Bezeichnung erscheinen in den Weckern als „Zentrale Aktion N“, bis sie beim nächsten Bearbeiten einen Namen erhalten. |
 
 Um eine Aktion in eine andere Gruppe zu verschieben, wird sie dort neu angelegt; die Auswahl in den Weckern muss dann neu getroffen werden. Nur Aktionen der Gruppe **Heizung** können in den Weckern einen Zeitversatz zur Weckzeit erhalten.
 

@@ -6,6 +6,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+### Geändert
+
+- **WakeUpActions:** Die Bezeichnung einer Aktion ist ein Pflichtfeld. Bestehende Aktionen ohne Bezeichnung bleiben gültig und erscheinen weiter als „Zentrale Aktion N“, bis sie beim nächsten Bearbeiten einen Namen erhalten.
+- **WakeUpManager:** Enthält die gespeicherte Aktionsauswahl ungültige Einträge, zeigt die Konsole einen Hinweis mit deren Anzahl. Die Einträge bleiben unverändert erhalten.
+
 ## [1.1.0] - 2026-11-01
 
 Beta.

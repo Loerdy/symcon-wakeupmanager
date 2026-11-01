@@ -206,7 +206,8 @@ class WakeUpManager extends IPSModuleStrict
         $context = [
             'actionInstance' => $actionInstance,
             'catalog'        => $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null,
-            'selection'      => $this->LoadSelection(),
+            'selection'      => $this->LoadSelection($invalid),
+            'invalid'        => $invalid,
             'time'           => $this->ParseTime($this->ReadAttributeString('WakeUpTime')),
             'weekendTime'    => $this->GetWeekendTime(),
             'weekdays'       => $this->LoadWeekdays()
@@ -612,6 +613,10 @@ class WakeUpManager extends IPSModuleStrict
                 } elseif ($context['selection'] === null) {
                     $element['caption'] = 'The saved action selection cannot be read and will not be overwritten.';
                     $element['visible'] = true;
+                } elseif ($context['invalid'] > 0) {
+                    // Mit Anzahl, deshalb hier übersetzt statt durch die Konsole.
+                    $element['caption'] = sprintf($this->Translate('%d entries of the stored action selection are invalid and will be ignored. They are kept unchanged.'), $context['invalid']);
+                    $element['visible'] = true;
                 }
             } elseif (($group = array_search($name, self::GROUP_PROPERTIES, true)) !== false) {
                 if ($context['catalog'] === null || $context['selection'] === null) {
@@ -935,9 +940,10 @@ class WakeUpManager extends IPSModuleStrict
     }
 
     // Liefert die eigene Auswahl je Aktions-ID oder null, wenn die gespeicherten Daten nicht lesbar sind.
-    // Fehlerhafte Einträge werden einzeln übersprungen.
-    private function LoadSelection(): ?array
+    // Fehlerhafte Einträge werden einzeln übersprungen (bleiben gespeichert); $invalid liefert deren Anzahl.
+    private function LoadSelection(?int &$invalid = null): ?array
     {
+        $invalid = 0;
         $rows = $this->DecodeList($this->ReadAttributeString('Selection'));
         if ($rows === null) {
             $this->SendDebug('Configuration', 'Action selection cannot be read', 0);
@@ -949,15 +955,18 @@ class WakeUpManager extends IPSModuleStrict
             $id = is_array($row) ? ($row['ID'] ?? null) : null;
             if (!is_string($id) || $id === '') {
                 $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': missing ID', 0);
+                $invalid++;
                 continue;
             }
             if (isset($selection[$id])) {
                 // Doppelte IDs entstehen durch das Modul nicht; falls doch, gilt der erste Eintrag.
+                $invalid++;
                 continue;
             }
             $offset = $this->NormalizeOffset($row['Offset'] ?? 0);
             if ($offset === null) {
                 $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid offset', 0);
+                $invalid++;
                 continue;
             }
             $selection[$id] = [

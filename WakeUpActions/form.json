@@ -31,7 +31,7 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
                 "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
                 "];"
             ]
@@ -63,7 +63,7 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
                 "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
                 "];"
             ]
@@ -95,7 +95,7 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
                 "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
                 "];"
             ]
@@ -127,7 +127,7 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
                 "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
                 "];"
             ]
@@ -159,7 +159,7 @@
             ],
             "form": [
                 "return [",
-                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px'],",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
                 "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Action', 'width' => '600px']",
                 "];"
             ]
