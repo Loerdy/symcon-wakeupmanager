@@ -173,6 +173,50 @@ class FadeTest extends WakeUpManagerTestCase
         }
     }
 
+    public function testFadingBeforeWakeUpStartsEarlierByTheFadingDuration(): void
+    {
+        // Weckzeit in 8 Minuten, Fading 10 Minuten: Start vor 2 Minuten fällig (wird beim Start nachgeholt)
+        $wakeUp = time() + 8 * 60;
+        $manager = $this->wakeUpManager($wakeUp, ['Fade' => true, 'FadeEarly' => true, 'RunTime' => 30]);
+
+        $this->assertSame(['Volume 10', 'Radio'], $this->runs());
+        $this->assertArrayHasKey('M', $this->fades($manager));
+        // Abspielzeit ab der Weckzeit
+        $this->assertSame($wakeUp + 30 * 60, json_decode($this->call($manager, 'ReadAttributeString', 'PendingStops'), true)['M']);
+    }
+
+    public function testFadingAtWakeUpDoesNotStartEarlier(): void
+    {
+        $manager = $this->wakeUpManager(time() + 8 * 60, ['Fade' => true, 'FadeEarly' => false]);
+
+        $this->assertSame([], $this->runs());
+        $this->assertSame([], $this->fades($manager));
+    }
+
+    public function testFadingBeforeWakeUpNeedsFading(): void
+    {
+        // Ohne Fading startet der Mediaplayer zur Weckzeit, auch wenn "vor der Weckzeit" gesetzt ist
+        $this->wakeUpManager(time() + 8 * 60, ['Fade' => false, 'FadeEarly' => true]);
+
+        $this->assertSame([], $this->runs());
+    }
+
+    public function testFadingBeforeWakeUpIsValidatedAndShownInTile(): void
+    {
+        $manager = $this->createManager($this->catalog);
+        $this->assertFalse($this->tileRow($manager)['fadeEarly']);
+
+        $manager->RequestAction('SetAction', json_encode(['ID' => 'M', 'FadeEarly' => true]));
+        $this->assertTrue($this->tileRow($manager)['fadeEarly']);
+
+        try {
+            $manager->RequestAction('SetAction', json_encode(['ID' => 'M', 'FadeEarly' => 1]));
+            $this->fail('Value accepted');
+        } catch (Exception $e) {
+            $this->assertSame('Invalid value', $e->getMessage());
+        }
+    }
+
     public function testFadingIsOnlyShownWithVolumeVariable(): void
     {
         $this->catalog = $this->createMediaCatalog(['VolumeControl' => 0]);
@@ -199,6 +243,18 @@ class FadeTest extends WakeUpManagerTestCase
             'WakeUpTime'    => $this->clock((int) date('G', $time), (int) date('i', $time), (int) date('s', $time)),
             'Weekdays'      => [1, 2, 3, 4, 5, 6, 7],
             'Selection'     => [['ID' => 'M', 'Active' => true, 'Offset' => 0, 'RunTime' => $runTime, 'Fade' => $fade]],
+            'LastProcessed' => time() - 600
+        ]);
+    }
+
+    // Wecker mit Weckzeit $wakeUp, der beim Start Zeitpunkte der letzten 10 Minuten nachholt
+    private function wakeUpManager(int $wakeUp, array $selection): WakeUpManager
+    {
+        return $this->createManager($this->catalog, [
+            'Active'        => true,
+            'WakeUpTime'    => $this->clock((int) date('G', $wakeUp), (int) date('i', $wakeUp), (int) date('s', $wakeUp)),
+            'Weekdays'      => [1, 2, 3, 4, 5, 6, 7],
+            'Selection'     => [$selection + ['ID' => 'M', 'Active' => true, 'Offset' => 0, 'RunTime' => 0]],
             'LastProcessed' => time() - 600
         ]);
     }

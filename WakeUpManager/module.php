@@ -677,7 +677,8 @@ class WakeUpManager extends IPSModuleStrict
             }
         }
         $fade = $value['Fade'] ?? null;
-        if ($fade !== null && !is_bool($fade)) {
+        $fadeEarly = $value['FadeEarly'] ?? null;
+        if (($fade !== null && !is_bool($fade)) || ($fadeEarly !== null && !is_bool($fadeEarly))) {
             $this->RejectValue('SetAction');
         }
         // Nur Aktionen der gewählten zentralen Instanz dürfen ausgewählt werden.
@@ -687,7 +688,7 @@ class WakeUpManager extends IPSModuleStrict
             $this->RejectValue('SetAction');
         }
 
-        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset, 'RunTime' => $runTime, 'Fade' => $fade]);
+        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset, 'RunTime' => $runTime, 'Fade' => $fade, 'FadeEarly' => $fadeEarly]);
     }
 
     // Ändert unter der Sperre nur die Zeile(n) der Aktion $id in den gespeicherten Rohdaten; alle anderen Zeilen,
@@ -737,28 +738,35 @@ class WakeUpManager extends IPSModuleStrict
         });
     }
 
-    // Setzt Active, Offset und gegebenenfalls RunTime und Fade einer Auswahlzeile; ungültige gespeicherte Werte werden
-    // dabei durch gültige ersetzt. RunTime und Fade werden nur geschrieben, wenn sie geändert werden oder bereits
-    // vorhanden sind. Liefert, ob sich die Zeile geändert hat. Weitere Felder der Zeile bleiben erhalten.
+    // Setzt Active, Offset und die Mediaplayer-Felder (RunTime, Fade, FadeEarly) einer Auswahlzeile; ungültige
+    // gespeicherte Werte werden dabei durch gültige ersetzt. Mediaplayer-Felder werden nur geschrieben, wenn sie geändert
+    // werden oder bereits vorhanden sind. Liefert, ob sich die Zeile geändert hat. Weitere Felder bleiben erhalten.
     private function ApplySelectionChange(object $row, array $change): bool
     {
-        $active = $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false);
-        $offset = $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0;
-        $runTime = $change['RunTime'] ?? (property_exists($row, 'RunTime') ? ($this->NormalizeRunTime($row->RunTime) ?? 0) : null);
-        $fade = $change['Fade'] ?? (property_exists($row, 'Fade') ? (is_bool($row->Fade) ? $row->Fade : true) : null);
-        if (($row->Active ?? null) === $active && ($row->Offset ?? null) === $offset
-            && ($runTime === null || ($row->RunTime ?? null) === $runTime) && ($fade === null || ($row->Fade ?? null) === $fade)) {
-            return false;
+        $values = [
+            'Active' => $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false),
+            'Offset' => $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0
+        ];
+        $media = [
+            'RunTime'   => fn (mixed $value): int => $this->NormalizeRunTime($value) ?? 0,
+            'Fade'      => static fn (mixed $value): bool => is_bool($value) ? $value : true,
+            'FadeEarly' => static fn (mixed $value): bool => is_bool($value) ? $value : false
+        ];
+        foreach ($media as $field => $normalize) {
+            $value = $change[$field] ?? (property_exists($row, $field) ? $normalize($row->$field) : null);
+            if ($value !== null) {
+                $values[$field] = $value;
+            }
         }
-        $row->Active = $active;
-        $row->Offset = $offset;
-        if ($runTime !== null) {
-            $row->RunTime = $runTime;
+
+        $changed = false;
+        foreach ($values as $field => $value) {
+            if (($row->$field ?? null) !== $value) {
+                $row->$field = $value;
+                $changed = true;
+            }
         }
-        if ($fade !== null) {
-            $row->Fade = $fade;
-        }
-        return true;
+        return $changed;
     }
 
     // Zeitversatz in Minuten als int oder null, wenn ungültig (JSON kann ganze Zahlen auch als Float liefern).
@@ -1036,6 +1044,7 @@ class WakeUpManager extends IPSModuleStrict
                     // Fading nur, wenn die zentrale Aktion eine Lautstärke-Variable hat
                     if ($group === self::MEDIA_GROUP && $action['media']['volume'] !== null) {
                         $row['fade'] = $selection[$id]['Fade'] ?? true;
+                        $row['fadeEarly'] = $selection[$id]['FadeEarly'] ?? false;
                     }
                     $actions[] = $row;
                 }
@@ -1086,6 +1095,7 @@ class WakeUpManager extends IPSModuleStrict
             if ($group === self::MEDIA_GROUP) {
                 $row['RunTime'] = $selection[$id]['RunTime'] ?? 0;
                 $row['Fade'] = $selection[$id]['Fade'] ?? true;
+                $row['FadeEarly'] = $selection[$id]['FadeEarly'] ?? false;
             }
             $rows[] = $row;
         }
@@ -1151,7 +1161,8 @@ class WakeUpManager extends IPSModuleStrict
             }
             $this->NotifyMedia('MediaStarted', $action['key'], $this->InstanceID);
             if ($media['stop'] !== null && $action['runTime'] > 0) {
-                $stopAt[$action['key']] = time() + $action['runTime'] * 60;
+                // Abspielzeit ab dem Start, bei Fading vor der Weckzeit ab der Weckzeit
+                $stopAt[$action['key']] = ($action['fadeEarly'] ? $action['occurrence'] : time()) + $action['runTime'] * 60;
             }
             if ($fade) {
                 $state = $this->CreateFade($volume, time());
@@ -1461,13 +1472,21 @@ class WakeUpManager extends IPSModuleStrict
             // Nur Heizungsaktionen haben einen Zeitversatz. Ohne zentrale Aktionen ist die Gruppe unbekannt; die
             // Aktion ist dann ohnehin nicht ausführbar, geplant wird mit dem gespeicherten Versatz.
             $group = $catalog[$id]['group'] ?? null;
-            $offset = ($group === null || $group === self::OFFSET_GROUP) ? $entry['Offset'] : 0;
+            $offset = ($group === null || $group === self::OFFSET_GROUP) ? $entry['Offset'] * 60 : 0;
+            // Mediaplayer mit Fading vor der Weckzeit starten um die Fading-Dauer früher; zur Weckzeit ist die
+            // Ziellautstärke erreicht.
+            $volume = $catalog[$id]['media']['volume'] ?? null;
+            $fadeEarly = $volume !== null && $entry['Fade'] && $entry['FadeEarly'] && $volume['start'] !== $volume['target'];
+            if ($fadeEarly) {
+                $offset = -$volume['duration'] * 60;
+            }
             $actions[] = [
-                'key'     => (string) $id,
-                'label'   => $catalog[$id]['name'] ?? (string) $id,
-                'offset'  => $offset * 60,
-                'runTime' => $entry['RunTime'],
-                'fade'    => $entry['Fade']
+                'key'       => (string) $id,
+                'label'     => $catalog[$id]['name'] ?? (string) $id,
+                'offset'    => $offset,
+                'runTime'   => $entry['RunTime'],
+                'fade'      => $entry['Fade'],
+                'fadeEarly' => $fadeEarly
             ];
         }
 
@@ -1521,16 +1540,18 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             $fade = $row['Fade'] ?? true;
-            if (!is_bool($fade)) {
+            $fadeEarly = $row['FadeEarly'] ?? false;
+            if (!is_bool($fade) || !is_bool($fadeEarly)) {
                 $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid fading', 0);
                 $invalid++;
                 continue;
             }
             $selection[$id] = [
-                'Active'  => ($row['Active'] ?? false) === true,
-                'Offset'  => $offset,
-                'RunTime' => $runTime,
-                'Fade'    => $fade
+                'Active'    => ($row['Active'] ?? false) === true,
+                'Offset'    => $offset,
+                'RunTime'   => $runTime,
+                'Fade'      => $fade,
+                'FadeEarly' => $fadeEarly
             ];
         }
         return $selection;
@@ -1715,7 +1736,9 @@ class WakeUpManager extends IPSModuleStrict
                 'label'      => $event['action']['label'],
                 'definition' => $config['catalog'][$event['action']['key']] ?? null,
                 'runTime'    => $event['action']['runTime'],
-                'fade'       => $event['action']['fade']
+                'fade'       => $event['action']['fade'],
+                'fadeEarly'  => $event['action']['fadeEarly'],
+                'occurrence' => $event['occurrence']
             ];
         }
         return $actions;

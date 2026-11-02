@@ -385,8 +385,10 @@
     }
     .offset {
         display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
         align-items: center;
-        gap: 4px 8px;
+        gap: 4px 12px;
         white-space: nowrap;
     }
     /* Zeitversatz als Stepper: − Wert min + */
@@ -514,14 +516,10 @@
         color: var(--content-color, CanvasText);
         background: var(--card-color, Canvas);
     }
-    button.action.toggle {
-        opacity: 0.6;
-    }
-    button.action.toggle.on {
-        border-color: var(--accent-color, currentColor);
-        background: color-mix(in srgb, var(--accent-color, currentColor) 25%, transparent);
-        font-weight: 600;
-        opacity: 1;
+    .row label.option {
+        flex: 0 0 auto;
+        font-size: 0.9em;
+        white-space: nowrap;
     }
     button.action:disabled {
         opacity: 0.5;
@@ -1166,6 +1164,24 @@
         return stepper;
     }
 
+    // Haken für eine Einstellung der Aktion (SetAction-Feld $key); $muted blendet ihn ab, bedienbar bleibt er.
+    function renderOption(action, key, checked, text, title, muted) {
+        const label = document.createElement('label');
+        label.className = 'option';
+        label.classList.toggle('muted', muted);
+        label.title = title;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = checked;
+        checkbox.addEventListener('change', function () {
+            send('SetAction', { ID: action.id, [key]: checkbox.checked });
+        });
+        const span = document.createElement('span');
+        span.textContent = text;
+        label.append(checkbox, span);
+        return label;
+    }
+
     function renderAction(action) {
         const row = document.createElement('div');
         row.className = 'row';
@@ -1194,17 +1210,11 @@
             const media = document.createElement('div');
             media.className = 'offset';
             if ('fade' in action) {
-                const fade = document.createElement('button');
-                fade.type = 'button';
-                fade.className = 'action toggle';
-                fade.classList.toggle('on', action.fade);
-                fade.setAttribute('aria-pressed', String(action.fade));
-                fade.textContent = translate('Fading');
-                fade.title = translate('Fading: volume rises from the start to the target volume');
-                fade.addEventListener('click', function () {
-                    send('SetAction', { ID: action.id, Fade: !action.fade });
-                });
-                media.appendChild(fade);
+                media.appendChild(renderOption(action, 'Fade', action.fade, translate('Fading'),
+                    translate('Fading: volume rises from the start to the target volume'), false));
+                // Nur mit Fading sinnvoll
+                media.appendChild(renderOption(action, 'FadeEarly', action.fadeEarly, translate('Before wake-up'),
+                    translate('Start earlier by the fading duration so that the target volume is reached at the wake-up time'), !action.fade));
             }
             if ('runTime' in action) {
                 media.appendChild(renderStepper(action, 'runTime'));
