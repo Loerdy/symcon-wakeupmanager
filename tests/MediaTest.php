@@ -65,6 +65,12 @@ class MediaTest extends WakeUpManagerTestCase
         $this->assertNotNull($media['stop']);
     }
 
+    public function testVolumeEnabledWithoutVariableIsNotUsed(): void
+    {
+        // Die Konsole speichert die Zeile auch ohne gewählte Variable
+        $this->assertNull($this->loadMedia(['VolumeVariable' => 0] + $this->mediaRow())['volume']);
+    }
+
     public function testInvalidVolumeSettingsAreNotUsed(): void
     {
         foreach ([['StartVolume' => 'loud'], ['TargetVolume' => null], ['FadeDuration' => 0], ['FadeDuration' => 121], ['FadeDuration' => 2.5], ['VolumeVariable' => 'abc']] as $change) {

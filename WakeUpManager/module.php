@@ -1299,6 +1299,9 @@ class WakeUpManager extends IPSModuleStrict
             }
         } elseif ($variable !== 0) {
             $this->SendDebug('Catalog', $name . ': invalid volume variable, volume not used', 0);
+        } elseif (($row['VolumeControl'] ?? null) === 1) {
+            // Die Konsole verlangt bei sichtbarer Variablenauswahl keine Auswahl.
+            $this->SendDebug('Catalog', $name . ': volume enabled but no volume variable selected, volume not used', 0);
         }
 
         $stop = ($row['SwitchOff'] ?? 1) === 0 ? null : $this->NormalizeAction($row['StopAction'] ?? null);

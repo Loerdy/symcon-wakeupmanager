@@ -46,7 +46,7 @@ Aktionen der Gruppe **Mediaplayer** haben im Bearbeitungsfenster zusätzliche Fe
 | – Fading-Dauer | 1 bis 120 Minuten, in denen die Lautstärke von der Start- zur Ziellautstärke steigt. |
 | Ausschalten | **Keine Ausschalt-Aktion** oder **Mit Ausschalt-Aktion**; bei der zweiten Option erscheint die **Ausschalt-Aktion**, z. B. Wiedergabe stoppen. |
 
-Felder unter einer nicht gewählten Option werden nicht geprüft und nicht verwendet; ihre Werte bleiben aber gespeichert, falls die Option später wieder gewählt wird.
+Ohne gewählte Lautstärke-Variable lässt sich die Aktion speichern, die Lautstärke wird dann aber nicht gesetzt (Hinweis im Debug des Weckers). Felder unter einer nicht gewählten Option werden nicht geprüft und nicht verwendet; ihre Werte bleiben aber gespeichert, falls die Option später wieder gewählt wird.
 
 In dieser Entwicklungsversion führen die Wecker nur die Startaktion aus. Lautstärke, Fading und Ausschalten nach einer am Wecker eingestellten Abspielzeit folgen in den nächsten Schritten.
 
