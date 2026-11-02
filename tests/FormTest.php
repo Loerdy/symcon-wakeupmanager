@@ -7,7 +7,7 @@ include_once __DIR__ . '/WakeUpManagerTestCase.php';
 // Konfigurationsformulare: Pflichtfeld "Bezeichnung" in WakeUpActions, Hinweis auf ungültige Auswahleinträge im Wecker.
 class FormTest extends WakeUpManagerTestCase
 {
-    private const LISTS = ['ActionsLight', 'ActionsShutter', 'ActionsHeating', 'ActionsOther', 'ActionsScript'];
+    private const LISTS = ['ActionsLight', 'ActionsShutter', 'ActionsHeating', 'ActionsMedia', 'ActionsOther', 'ActionsScript'];
 
     public function testActionNameIsRequiredInEveryGroup(): void
     {

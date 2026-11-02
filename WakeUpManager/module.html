@@ -385,8 +385,10 @@
     }
     .offset {
         display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
         align-items: center;
-        gap: 4px;
+        gap: 4px 12px;
         white-space: nowrap;
     }
     /* Zeitversatz als Stepper: − Wert min + */
@@ -514,6 +516,11 @@
         color: var(--content-color, CanvasText);
         background: var(--card-color, Canvas);
     }
+    .row label.option {
+        flex: 0 0 auto;
+        font-size: 0.9em;
+        white-space: nowrap;
+    }
     button.action:disabled {
         opacity: 0.5;
         cursor: default;
@@ -603,10 +610,29 @@
     // Schlüssel entsprechen den ISO-Wochentagen bzw. Gruppenschlüsseln im Modul; Texte werden über locale.json übersetzt.
     const WEEKDAYS = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
     const WEEKDAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' };
-    const GROUPS = { light: 'Lights', shutter: 'Shutters', heating: 'Heating', other: 'Other', script: 'Scripts' };
-    const GROUP_ICONS = { light: 'lightbulb', shutter: 'blinds', heating: 'temperature-half', other: 'music', script: 'pen' };
-    // Schrittweite der Stepper-Schaltflächen für den Zeitversatz; per Tastatur ist jeder Minutenwert möglich.
-    const OFFSET_STEP = 5;
+    const GROUPS = { light: 'Lights', shutter: 'Shutters', heating: 'Heating', media: 'Media players', other: 'Other', script: 'Scripts' };
+    const GROUP_ICONS = { light: 'lightbulb', shutter: 'blinds', heating: 'temperature-half', media: 'music', other: 'circle-question', script: 'pen' };
+    // Schrittweite der Stepper-Schaltflächen (Minuten); per Tastatur ist jeder Minutenwert möglich.
+    const STEP = 5;
+    // Werte mit Stepper je Feld der Kachel: Schlüssel für SetAction, Grenzen und Beschriftungen.
+    const STEPPERS = {
+        offset: {
+            key: 'Offset',
+            min: () => -state.maxOffset,
+            max: () => state.maxOffset,
+            title: () => translate('Offset in minutes: negative = before the wake-up time, positive = after'),
+            less: () => translate('Earlier'),
+            more: () => translate('Later')
+        },
+        runTime: {
+            key: 'RunTime',
+            min: () => 0,
+            max: () => state.maxRunTime,
+            title: () => translate('Run time until switch-off in minutes, 0 = do not switch off'),
+            less: () => translate('Shorter'),
+            more: () => translate('Longer')
+        }
+    };
     const STATUS = {
         201: 'The wake-up time is invalid',
         202: 'No weekday is enabled',
@@ -769,7 +795,7 @@
         renderDays();
 
         const groups = document.getElementById('groups');
-        if (isEditing(groups) || pendingOffset !== null) {
+        if (isEditing(groups) || pendingStep !== null) {
             deferred = true;
         } else {
             renderGroups(groups);
@@ -1040,48 +1066,120 @@
         }
     }
 
-    // Über die Stepper-Schaltflächen geänderter Zeitversatz: wird erst nach einer kurzen Pause gespeichert, damit
-    // mehrere Klicks nur eine Änderung auslösen. Bis dahin werden die Aktionen nicht neu gezeichnet.
-    let pendingOffset = null;
+    // Über die Stepper-Schaltflächen geänderter Wert: wird erst nach einer kurzen Pause gespeichert, damit mehrere
+    // Klicks nur eine Änderung auslösen. Bis dahin werden die Aktionen nicht neu gezeichnet.
+    let pendingStep = null;
 
-    function flushOffset() {
-        if (pendingOffset === null) {
+    function flushStep() {
+        if (pendingStep === null) {
             return;
         }
-        clearTimeout(pendingOffset.timer);
-        const id = pendingOffset.id;
-        const value = pendingOffset.value;
-        pendingOffset = null;
-        saveOffset(id, value);
+        clearTimeout(pendingStep.timer);
+        const { id, field, value } = pendingStep;
+        pendingStep = null;
+        saveStep(id, field, value);
     }
 
-    function saveOffset(id, value) {
+    function saveStep(id, field, value) {
         const action = state.groups.flatMap(group => group.actions).find(item => item.id === id);
-        if (action && action.offset !== value) {
+        if (action && action[field] !== value) {
             // Sofort übernehmen, damit ein Neuzeichnen vor der Antwort des Moduls nicht den alten Wert zeigt.
-            action.offset = value;
-            send('SetAction', { ID: id, Offset: value });
+            action[field] = value;
+            send('SetAction', { ID: id, [STEPPERS[field].key]: value });
         }
         if (deferred) {
             render();
         }
     }
 
-    function stepOffset(action, input, direction) {
-        if (pendingOffset !== null && pendingOffset.id !== action.id) {
-            flushOffset();
+    function stepValue(action, field, input, direction) {
+        if (pendingStep !== null && (pendingStep.id !== action.id || pendingStep.field !== field)) {
+            flushStep();
         }
+        const spec = STEPPERS[field];
         const current = Number(input.value);
-        const base = input.value !== '' && Number.isInteger(current) ? current : action.offset;
+        const base = input.value !== '' && Number.isInteger(current) ? current : action[field];
         // Auf das nächste Vielfache der Schrittweite in der gewählten Richtung
-        const next = direction > 0 ? Math.floor(base / OFFSET_STEP + 1) * OFFSET_STEP : Math.ceil(base / OFFSET_STEP - 1) * OFFSET_STEP;
-        const value = Math.max(-state.maxOffset, Math.min(state.maxOffset, next));
+        const next = direction > 0 ? Math.floor(base / STEP + 1) * STEP : Math.ceil(base / STEP - 1) * STEP;
+        const value = Math.max(spec.min(), Math.min(spec.max(), next));
         input.value = String(value);
         input.dispatchEvent(new Event('input'));
-        if (pendingOffset !== null) {
-            clearTimeout(pendingOffset.timer);
+        if (pendingStep !== null) {
+            clearTimeout(pendingStep.timer);
         }
-        pendingOffset = { id: action.id, value: value, timer: setTimeout(flushOffset, 700) };
+        pendingStep = { id: action.id, field: field, value: value, timer: setTimeout(flushStep, 700) };
+    }
+
+    // Stepper "− Wert min +" für ein Feld aus STEPPERS
+    function renderStepper(action, field) {
+        const spec = STEPPERS[field];
+        const stepper = document.createElement('div');
+        stepper.className = 'stepper';
+        stepper.title = spec.title();
+        const minus = document.createElement('button');
+        minus.type = 'button';
+        minus.textContent = '−';
+        minus.setAttribute('aria-label', spec.less());
+        const plus = document.createElement('button');
+        plus.type = 'button';
+        plus.textContent = '+';
+        plus.setAttribute('aria-label', spec.more());
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = '1';
+        input.min = String(spec.min());
+        input.max = String(spec.max());
+        input.value = String(action[field]);
+        input.setAttribute('aria-label', stepper.title);
+        const updateButtons = function () {
+            const value = Number(input.value);
+            minus.disabled = Number.isInteger(value) && value <= spec.min();
+            plus.disabled = Number.isInteger(value) && value >= spec.max();
+        };
+        input.addEventListener('input', updateButtons);
+        input.addEventListener('change', function () {
+            const value = Number(input.value);
+            if (input.value === '' || !Number.isInteger(value) || value < spec.min() || value > spec.max()) {
+                input.value = String(action[field]);
+                updateButtons();
+                return;
+            }
+            if (pendingStep !== null && pendingStep.id === action.id && pendingStep.field === field) {
+                clearTimeout(pendingStep.timer);
+                pendingStep = null;
+            }
+            saveStep(action.id, field, value);
+        });
+        minus.addEventListener('click', function () {
+            stepValue(action, field, input, -1);
+        });
+        plus.addEventListener('click', function () {
+            stepValue(action, field, input, 1);
+        });
+        updateButtons();
+        const unit = document.createElement('span');
+        unit.className = 'unit';
+        unit.textContent = translate('min');
+        stepper.append(minus, input, unit, plus);
+        return stepper;
+    }
+
+    // Haken für eine Einstellung der Aktion (SetAction-Feld $key); $muted blendet ihn ab, bedienbar bleibt er.
+    function renderOption(action, key, checked, text, title, muted) {
+        const label = document.createElement('label');
+        label.className = 'option';
+        label.classList.toggle('muted', muted);
+        label.title = title;
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = checked;
+        checkbox.addEventListener('change', function () {
+            send('SetAction', { ID: action.id, [key]: checkbox.checked });
+        });
+        const span = document.createElement('span');
+        span.textContent = text;
+        label.append(checkbox, span);
+        return label;
     }
 
     function renderAction(action) {
@@ -1108,58 +1206,25 @@
         }
         row.appendChild(label);
 
+        if ('fade' in action || 'runTime' in action) {
+            const media = document.createElement('div');
+            media.className = 'offset';
+            if ('fade' in action) {
+                media.appendChild(renderOption(action, 'Fade', action.fade, translate('Fading'),
+                    translate('Fading: volume rises from the start to the target volume'), false));
+                // Nur mit Fading sinnvoll
+                media.appendChild(renderOption(action, 'FadeEarly', action.fadeEarly, translate('Before wake-up'),
+                    translate('Start earlier by the fading duration so that the target volume is reached at the wake-up time'), !action.fade));
+            }
+            if ('runTime' in action) {
+                media.appendChild(renderStepper(action, 'runTime'));
+            }
+            row.appendChild(media);
+        }
         if ('offset' in action) {
             const offset = document.createElement('div');
             offset.className = 'offset';
-            const stepper = document.createElement('div');
-            stepper.className = 'stepper';
-            stepper.title = translate('Offset in minutes: negative = before the wake-up time, positive = after');
-            const minus = document.createElement('button');
-            minus.type = 'button';
-            minus.textContent = '−';
-            minus.setAttribute('aria-label', translate('Earlier'));
-            const plus = document.createElement('button');
-            plus.type = 'button';
-            plus.textContent = '+';
-            plus.setAttribute('aria-label', translate('Later'));
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.step = '1';
-            input.min = String(-state.maxOffset);
-            input.max = String(state.maxOffset);
-            input.value = String(action.offset);
-            input.setAttribute('aria-label', stepper.title);
-            const updateButtons = function () {
-                const value = Number(input.value);
-                minus.disabled = Number.isInteger(value) && value <= -state.maxOffset;
-                plus.disabled = Number.isInteger(value) && value >= state.maxOffset;
-            };
-            input.addEventListener('input', updateButtons);
-            input.addEventListener('change', function () {
-                const value = Number(input.value);
-                if (input.value === '' || !Number.isInteger(value) || Math.abs(value) > state.maxOffset) {
-                    input.value = String(action.offset);
-                    updateButtons();
-                    return;
-                }
-                if (pendingOffset !== null && pendingOffset.id === action.id) {
-                    clearTimeout(pendingOffset.timer);
-                    pendingOffset = null;
-                }
-                saveOffset(action.id, value);
-            });
-            minus.addEventListener('click', function () {
-                stepOffset(action, input, -1);
-            });
-            plus.addEventListener('click', function () {
-                stepOffset(action, input, 1);
-            });
-            updateButtons();
-            const unit = document.createElement('span');
-            unit.className = 'unit';
-            unit.textContent = translate('min');
-            stepper.append(minus, input, unit, plus);
-            offset.appendChild(stepper);
+            offset.appendChild(renderStepper(action, 'offset'));
             if (action.start) {
                 const start = document.createElement('span');
                 start.className = 'start';
@@ -1192,7 +1257,7 @@
         if (state === null) {
             return;
         }
-        flushOffset();
+        flushStep();
         // Sofort umschalten; die Antwort des Moduls bestätigt den Wert.
         state.selectedOnly = !selectedOnly;
         send('SetSelectedOnly', state.selectedOnly);

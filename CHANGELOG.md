@@ -6,6 +6,20 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-02
+
+Beta.
+
+### Hinzugefügt
+
+- **WakeUpActions:** Neue Gruppe **Mediaplayer** mit Startaktion und optional Lautstärke (Variable, Start- und Ziellautstärke, Fading-Dauer) sowie Ausschalt-Aktion. Die Wecker zeigen die Gruppe an und führen die Startaktion zur Weckzeit aus. Mediaplayer, die bisher unter „Sonstiges“ stehen, müssen dort neu angelegt und in den Weckern neu ausgewählt werden.
+- **Ausschalten nach Abspielzeit:** Je Wecker und Mediaplayer-Aktion eine Abspielzeit (Konsole und Kachel, 0 = nicht ausschalten), nach der die Ausschalt-Aktion ausgeführt wird. Das Ausschalten bleibt bei Deaktivieren des Weckers und über einen Neustart hinweg bestehen. Startet ein anderer Wecker oder „Ausgewählte Aktionen jetzt ausführen“ dieselbe Aktion später, entfällt das Ausschalten des früheren Weckers. Übersprungene Startaktionen (Bedingung nicht erfüllt) werden nicht ausgeschaltet.
+- **Fading:** Je Wecker und Mediaplayer-Aktion ein- und ausschaltbar (Konsole und Kachel). Vor dem Start wird die Startlautstärke gesetzt, danach steigt die Lautstärke in Schritten (mindestens 15 Sekunden Abstand) bis zur Ziellautstärke; ohne Fading wird gleich die Ziellautstärke gesetzt. Mit **Vor der Weckzeit** beginnen Wiedergabe und Fading um die Fading-Dauer früher, sodass die Ziellautstärke zur Weckzeit erreicht ist; die Abspielzeit zählt dann ab der Weckzeit. Eine von Hand geänderte Lautstärke beendet das Fading, nach einem Neustart wird die zum Zeitpunkt passende Lautstärke gesetzt. „Ausgewählte Aktionen jetzt ausführen“ setzt die Startlautstärke ohne Fading.
+
+### Geändert
+
+- Kachel: Die Gruppe „Sonstiges“ zeigt ein Fragezeichen; die Noten gehören jetzt zur Gruppe „Mediaplayer“.
+
 ## [1.4.0] - 2026-11-02
 
 Beta.
@@ -100,7 +114,8 @@ Erstes Release (Beta).
 - Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
 - Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
 
-[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.2.0...v1.3.0

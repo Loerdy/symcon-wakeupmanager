@@ -5,6 +5,19 @@
             "Lights": "Lampen",
             "Shutters": "Rollläden",
             "Heating": "Heizung",
+            "Media players": "Mediaplayer",
+            "Start action (e.g. play a radio station)": "Startaktion (z. B. Radiosender abspielen)",
+            "Volume": "Lautstärke",
+            "Do not set volume": "Lautstärke nicht setzen",
+            "Set volume via a variable": "Lautstärke über eine Variable setzen",
+            "Volume variable": "Lautstärke-Variable",
+            "Start volume": "Startlautstärke",
+            "Target volume": "Ziellautstärke",
+            "Fading duration": "Fading-Dauer",
+            "Switch-off": "Ausschalten",
+            "No switch-off action": "Keine Ausschalt-Aktion",
+            "With switch-off action": "Mit Ausschalt-Aktion",
+            "Switch-off action (e.g. stop playback)": "Ausschalt-Aktion (z. B. Wiedergabe stoppen)",
             "Other": "Sonstiges",
             "Scripts": "Skripte",
             "Name": "Bezeichnung",
@@ -15,7 +28,10 @@
             "The previous action list could not be migrated": "Die bisherige Aktionsliste konnte nicht übernommen werden",
             "The previous central action list could not be migrated to the groups": "Die bisherige zentrale Aktionsliste konnte nicht in die Gruppen übernommen werden",
             "The central action list cannot be read": "Die zentrale Aktionsliste ist nicht lesbar",
-            "The central action list contains entries without a unique ID": "Die zentrale Aktionsliste enthält Einträge ohne eindeutige ID"
+            "The central action list contains entries without a unique ID": "Die zentrale Aktionsliste enthält Einträge ohne eindeutige ID",
+            "Invalid value": "Ungültiger Wert",
+            "The media player coordination is busy, please try again": "Die Abstimmung der Mediaplayer ist belegt, bitte erneut versuchen",
+            "Switch-off action failed: %s": "Ausschalt-Aktion fehlgeschlagen: %s"
         }
     }
 }

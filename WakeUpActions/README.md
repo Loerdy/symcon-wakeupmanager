@@ -13,7 +13,7 @@ Zentrale Liste der Aktionen, aus denen die Wecker ([WakeUpManager](../WakeUpMana
 
 ## 1. Funktionsumfang
 
-- Je Gruppe eine eigene Liste: **Lampen, Rollläden, Heizung, Sonstiges, Skripte**.
+- Je Gruppe eine eigene Liste: **Lampen, Rollläden, Heizung, Mediaplayer, Sonstiges, Skripte**.
 - Jede Aktion besteht aus einer **Bezeichnung** (z. B. „Schlafzimmerlicht an“), einer beliebigen **IP-Symcon-Aktion** inklusive Ziel und optional einer **Bedingung**, unter der sie ausgeführt wird.
 - Jede Aktion erhält beim Anlegen automatisch eine feste ID. Umbenennen, Umsortieren oder das Ändern der Aktion wirkt sich deshalb sofort auf alle Wecker aus, ohne dass die Auswahl in den Weckern verloren geht.
 - Das Modul legt keine Variablen an und steuert keine Geräte selbst; die Aktionen werden von den Weckern ausgeführt.
@@ -31,7 +31,26 @@ Zentrale Liste der Aktionen, aus denen die Wecker ([WakeUpManager](../WakeUpMana
 
 | Liste | Beschreibung |
 | --- | --- |
-| Lampen, Rollläden, Heizung, Sonstiges, Skripte | Je Gruppe die Aktionen mit **Bezeichnung** und **Aktion**. Hinzufügen, Bearbeiten, Löschen und Umsortieren direkt in der Liste; wirksam mit **Übernehmen**. Die Bezeichnung ist ein Pflichtfeld; Aktionen aus früheren Versionen ohne Bezeichnung erscheinen in den Weckern als „Zentrale Aktion N“, bis sie beim nächsten Bearbeiten einen Namen erhalten. |
+| Lampen, Rollläden, Heizung, Mediaplayer, Sonstiges, Skripte | Je Gruppe die Aktionen mit **Bezeichnung** und **Aktion**. Hinzufügen, Bearbeiten, Löschen und Umsortieren direkt in der Liste; wirksam mit **Übernehmen**. Die Bezeichnung ist ein Pflichtfeld; Aktionen aus früheren Versionen ohne Bezeichnung erscheinen in den Weckern als „Zentrale Aktion N“, bis sie beim nächsten Bearbeiten einen Namen erhalten. |
+
+### Mediaplayer
+
+Aktionen der Gruppe **Mediaplayer** haben im Bearbeitungsfenster zusätzliche Felder. Alle Werte gelten zentral für alle Wecker, die die Aktion auswählen:
+
+| Feld | Beschreibung |
+| --- | --- |
+| Startaktion | Startet die Wiedergabe, z. B. einen Radiosender. |
+| Lautstärke | **Lautstärke nicht setzen** oder **Lautstärke über eine Variable setzen**. Nur bei der zweiten Option erscheinen: |
+| – Lautstärke-Variable | Integer- oder Float-Variable mit Aktion, über die die Lautstärke gesetzt wird (unabhängig vom Gerät). |
+| – Startlautstärke, Ziellautstärke | In der Einheit der Variable, z. B. 0–100 oder 0–1. |
+| – Fading-Dauer | 1 bis 120 Minuten, in denen die Lautstärke von der Start- zur Ziellautstärke steigt. |
+| Ausschalten | **Keine Ausschalt-Aktion** oder **Mit Ausschalt-Aktion**; bei der zweiten Option erscheint die **Ausschalt-Aktion**, z. B. Wiedergabe stoppen. |
+
+Ohne gewählte Lautstärke-Variable lässt sich die Aktion speichern, die Lautstärke wird dann aber nicht gesetzt (Hinweis im Debug des Weckers). Felder unter einer nicht gewählten Option werden nicht geprüft und nicht verwendet; ihre Werte bleiben aber gespeichert, falls die Option später wieder gewählt wird.
+
+Die **Abspielzeit** bis zum Ausschalten wird in jedem Wecker eingestellt; dort ist auch beschrieben, wann ausgeschaltet wird ([Ausschalten von Mediaplayern](../WakeUpManager/README.md#ausschalten-von-mediaplayern)). Die Ausschalt-Aktion führt diese Instanz aus, und zwar nur für den Wecker, der die Aktion zuletzt gestartet hat. Ob mit Fading geweckt wird, wird ebenfalls in jedem Wecker eingestellt ([Fading](../WakeUpManager/README.md#fading)).
+
+Mediaplayer, die bisher unter „Sonstiges“ angelegt sind, werden unter „Mediaplayer“ neu angelegt (siehe unten); die Auswahl in den Weckern muss dann neu getroffen werden.
 
 ### Bedingungen
 

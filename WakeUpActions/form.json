@@ -105,6 +105,54 @@
         },
         {
             "type": "List",
+            "name": "ActionsMedia",
+            "caption": "Media players",
+            "rowCount": 4,
+            "add": true,
+            "delete": true,
+            "changeOrder": true,
+            "columns": [
+                {
+                    "name": "ID",
+                    "visible": false,
+                    "add": {
+                        "strategy": "guid"
+                    },
+                    "save": true
+                },
+                {
+                    "caption": "Name",
+                    "name": "Name",
+                    "width": "auto",
+                    "add": "",
+                    "save": true
+                }
+            ],
+            "form": [
+                "return [",
+                "    ['type' => 'ValidationTextBox', 'name' => 'Name', 'caption' => 'Name', 'width' => '400px', 'validate' => '.*\\S.*'],",
+                "    ['type' => 'SelectAction', 'name' => 'Action', 'caption' => 'Start action (e.g. play a radio station)', 'width' => '600px'],",
+                "    ['type' => 'SelectCondition', 'name' => 'Condition', 'caption' => 'Condition (optional, e.g. only at night or when it is dark)', 'multi' => true, 'width' => '600px'],",
+                "    ['type' => 'Select', 'name' => 'VolumeControl', 'caption' => 'Volume', 'value' => 0, 'width' => '600px', 'options' => [",
+                "        ['caption' => 'Do not set volume', 'value' => 0],",
+                "        ['caption' => 'Set volume via a variable', 'value' => 1, 'items' => [",
+                "            ['type' => 'SelectVariable', 'name' => 'VolumeVariable', 'caption' => 'Volume variable', 'value' => 0, 'validVariableTypes' => [1, 2], 'requiredAction' => 1, 'width' => '600px'],",
+                "            ['type' => 'NumberSpinner', 'name' => 'StartVolume', 'caption' => 'Start volume', 'value' => 10, 'moreDigits' => true],",
+                "            ['type' => 'NumberSpinner', 'name' => 'TargetVolume', 'caption' => 'Target volume', 'value' => 30, 'moreDigits' => true],",
+                "            ['type' => 'NumberSpinner', 'name' => 'FadeDuration', 'caption' => 'Fading duration', 'suffix' => ' min', 'value' => 10, 'minimum' => 1, 'maximum' => 120]",
+                "        ]]",
+                "    ]],",
+                "    ['type' => 'Select', 'name' => 'SwitchOff', 'caption' => 'Switch-off', 'value' => 0, 'width' => '600px', 'options' => [",
+                "        ['caption' => 'No switch-off action', 'value' => 0],",
+                "        ['caption' => 'With switch-off action', 'value' => 1, 'items' => [",
+                "            ['type' => 'SelectAction', 'name' => 'StopAction', 'caption' => 'Switch-off action (e.g. stop playback)', 'width' => '600px']",
+                "        ]]",
+                "    ]]",
+                "];"
+            ]
+        },
+        {
+            "type": "List",
             "name": "ActionsOther",
             "caption": "Other",
             "rowCount": 4,

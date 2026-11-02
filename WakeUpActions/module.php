@@ -10,12 +10,15 @@ class WakeUpActions extends IPSModuleStrict
         'light'   => 'ActionsLight',
         'shutter' => 'ActionsShutter',
         'heating' => 'ActionsHeating',
+        'media'   => 'ActionsMedia',
         'other'   => 'ActionsOther',
         'script'  => 'ActionsScript'
     ];
 
     // Frühere gemeinsame Liste mit Gruppenfeld je Eintrag; wird per Migrate auf die Gruppen verteilt.
     private const LEGACY_PROPERTY = 'Actions';
+
+    private const MEDIA_PROPERTY = 'ActionsMedia';
 
     private const STATUS_INVALID_ACTIONS = 201;
     private const STATUS_LEGACY_NOT_MIGRATED = 202;
@@ -28,6 +31,10 @@ class WakeUpActions extends IPSModuleStrict
             $this->RegisterPropertyString($property, '[]');
         }
         $this->RegisterPropertyString(self::LEGACY_PROPERTY, '[]');
+
+        // Letzter Start je Mediaplayer-Aktion: {"<Aktions-ID>": <Instanz-ID des Weckers, 0 = von Hand>}. Nur der
+        // jüngste Start darf ausschalten ("neuerer Start gewinnt").
+        $this->RegisterAttributeString('MediaStarts', '{}');
     }
 
     public function Migrate(string $JSONData): string
@@ -115,6 +122,86 @@ class WakeUpActions extends IPSModuleStrict
 
         $this->SendDebug('Configuration', count($ids) . ' action(s)', 0);
         $this->SetStatus(IS_ACTIVE);
+    }
+
+    // Abstimmung der Wecker für Mediaplayer-Aktionen (aufgerufen per IPS_RequestAction aus WakeUpManager):
+    // MediaStarted vermerkt den Start, MediaStop führt die Ausschalt-Aktion nur für den jüngsten Start aus.
+    public function RequestAction(string $Ident, mixed $Value): void
+    {
+        $value = is_string($Value) ? json_decode($Value, true) : null;
+        $id = is_array($value) ? ($value['ID'] ?? null) : null;
+        $owner = is_array($value) ? ($value['Owner'] ?? null) : null;
+        if (!in_array($Ident, ['MediaStarted', 'MediaStop'], true)) {
+            throw new Exception('Invalid Ident');
+        }
+        if (!is_string($id) || $id === '' || !is_int($owner) || $owner < 0) {
+            throw new Exception($this->Translate('Invalid value'));
+        }
+
+        $semaphore = 'WUA_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Media', 'Semaphore could not be entered', 0);
+            throw new Exception($this->Translate('The media player coordination is busy, please try again'));
+        }
+        try {
+            $starts = json_decode($this->ReadAttributeString('MediaStarts'), true);
+            if (!is_array($starts)) {
+                // Reine Verwaltungsdaten; ohne sie wird jedes Ausschalten ausgeführt (sicherer als ein weiterlaufendes Gerät).
+                $this->SendDebug('Media', 'Start log cannot be read, rebuilding', 0);
+                $starts = [];
+            }
+            if ($Ident === 'MediaStarted') {
+                if (($starts[$id] ?? null) !== $owner) {
+                    $starts[$id] = $owner;
+                    $this->WriteAttributeString('MediaStarts', json_encode((object) $starts));
+                }
+                return;
+            }
+            if (isset($starts[$id]) && $starts[$id] !== $owner) {
+                $this->SendDebug('Media', $id . ': switch-off by ' . $owner . ' skipped, started later by ' . $starts[$id], 0);
+                return;
+            }
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+
+        // Ausschalt-Aktion außerhalb der Sperre ausführen
+        $this->RunStopAction($id);
+    }
+
+    private function RunStopAction(string $id): void
+    {
+        $rows = $this->DecodeList($this->ReadPropertyString(self::MEDIA_PROPERTY)) ?? [];
+        $row = null;
+        foreach ($rows as $candidate) {
+            if (is_array($candidate) && ($candidate['ID'] ?? null) === $id) {
+                $row = $candidate;
+                break;
+            }
+        }
+        if ($row === null || ($row['SwitchOff'] ?? 1) === 0) {
+            $this->SendDebug('Media', $id . ': no switch-off action', 0);
+            return;
+        }
+        $name = is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $id;
+        $action = $row['StopAction'] ?? null;
+        if (is_string($action)) {
+            $action = json_decode($action, true);
+        }
+        if (!is_array($action) || !is_string($action['actionID'] ?? null) || $action['actionID'] === '' || !is_array($action['parameters'] ?? [])) {
+            $this->SendDebug('Media', $name . ': no valid switch-off action', 0);
+            return;
+        }
+        try {
+            if (IPS_RunAction($action['actionID'], $action['parameters'] ?? [])) {
+                $this->SendDebug('Media', $name . ': switch-off action executed', 0);
+                return;
+            }
+            $this->SendDebug('Media', $name . ': switch-off action failed', 0);
+        } catch (Throwable $e) {
+            $this->SendDebug('Media', $name . ': switch-off action failed: ' . $e->getMessage(), 0);
+        }
+        $this->LogMessage(sprintf($this->Translate('Switch-off action failed: %s'), $name), KL_WARNING);
     }
 
     // Liefert die Liste oder null, wenn der Wert keine JSON-Liste ist.

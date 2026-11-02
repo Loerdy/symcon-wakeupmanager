@@ -287,6 +287,69 @@
         },
         {
             "type": "List",
+            "name": "ActionsMedia",
+            "caption": "Media players (fading from start to target volume, optionally finished at the wake-up time; run time in minutes until the switch-off action, 0 = do not switch off)",
+            "rowCount": 4,
+            "add": false,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "caption": "Condition",
+                    "name": "Condition",
+                    "width": "110px"
+                },
+                {
+                    "caption": "Fading",
+                    "name": "Fade",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "caption": "Before wake-up",
+                    "name": "FadeEarly",
+                    "width": "140px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "caption": "Run time",
+                    "name": "RunTime",
+                    "width": "160px",
+                    "align": "right",
+                    "edit": {
+                        "type": "NumberSpinner",
+                        "suffix": " min",
+                        "minimum": 0,
+                        "maximum": 720
+                    }
+                },
+                {
+                    "name": "ID",
+                    "visible": false
+                }
+            ],
+            "values": [],
+            "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsMedia));",
+            "onDelete": "IPS_RequestAction($id, 'DeleteAction', $ActionsMedia['ID']);"
+        },
+        {
+            "type": "List",
             "name": "ActionsOther",
             "caption": "Other",
             "rowCount": 4,

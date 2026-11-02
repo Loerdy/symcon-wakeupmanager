@@ -10,6 +10,14 @@ class WakeUpManager extends IPSModuleStrict
     // Maximaler Zeitversatz einer Aktion in Minuten (vorher bzw. nachher).
     private const MAX_OFFSET = 1440;
 
+    // Maximale Abspielzeit einer Mediaplayer-Aktion bis zum Ausschalten in Minuten; 0 = nicht ausschalten.
+    private const MAX_RUN_TIME = 720;
+
+    // Fading: höchstens alle 15 Sekunden ein Schritt. Weicht die Lautstärke um mehr als die Toleranz vom zuletzt
+    // gesetzten Wert ab, wurde sie von Hand (oder durch einen anderen Start) geändert und das Fading endet.
+    private const FADE_MIN_INTERVAL = 15;
+    private const VOLUME_TOLERANCE = 0.0001;
+
     private const TIMER = 'WakeUpTimer';
 
     private const ACTIONS_MODULE_ID = '{4E963960-1F66-A246-3BC9-BA42E525A6F7}';
@@ -32,15 +40,21 @@ class WakeUpManager extends IPSModuleStrict
     private const WEEKEND = [6, 7];
 
     // Eigenschaft je Gruppe in WakeUpActions und gleichnamige Liste im Formular hier; die Gruppenschlüssel
-    // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz.
+    // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz, nur Aktionen der Gruppe
+    // "media" Lautstärke, Fading und Ausschalt-Aktion.
     private const GROUP_PROPERTIES = [
         'light'   => 'ActionsLight',
         'shutter' => 'ActionsShutter',
         'heating' => 'ActionsHeating',
+        'media'   => 'ActionsMedia',
         'other'   => 'ActionsOther',
         'script'  => 'ActionsScript'
     ];
     private const OFFSET_GROUP = 'heating';
+    private const MEDIA_GROUP = 'media';
+    // Grenzen der Fading-Dauer in Minuten wie im Formular von WakeUpActions
+    private const MIN_FADE_DURATION = 1;
+    private const MAX_FADE_DURATION = 120;
 
     // Frühere gemeinsame Auswahlliste (vor den Gruppen); wird per Migrate übernommen.
     private const LEGACY_PROPERTY = 'Actions';
@@ -90,6 +104,12 @@ class WakeUpManager extends IPSModuleStrict
         $this->RegisterAttributeInteger('LastProcessed', -1);
         // Bereits ausgeführte Aktionen je Weckvorgang: {"<Wecktag Y-m-d>": ["<Aktions-ID>", ...]}
         $this->RegisterAttributeString('Executed', '{}');
+        // Geplantes Ausschalten gestarteter Mediaplayer: {"<Aktions-ID>": <Unix-Zeitstempel>}. Bleibt bei Deaktivieren
+        // des Weckers und Neustart erhalten und wird auch verspätet ausgeführt.
+        $this->RegisterAttributeString('PendingStops', '{}');
+        // Laufendes Fading je Aktions-ID (Lautstärke-Variable, Start/Ziel, Beginn, Dauer, Schritte, zuletzt gesetzter Wert).
+        // Läuft wie das Ausschalten unabhängig vom Aktiv-Schalter weiter.
+        $this->RegisterAttributeString('Fades', '{}');
 
         $this->RegisterTimer(self::TIMER, 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProcessTimer\', 0);');
 
@@ -589,7 +609,14 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             $this->SendDebug('Run', 'Starting ' . $definition['name'], 0);
-            $results[$this->RunAction($definition['name'], $definition)]++;
+            // Mediaplayer mit Startlautstärke, aber ohne Fading und ohne Ausschalten (nur zum Testen bzw. Starten).
+            $volume = $definition['media']['volume'] ?? null;
+            $result = $this->RunAction($definition['name'], $definition, $volume === null ? null : ['variable' => $volume['variable'], 'value' => $volume['start']]);
+            $results[$result]++;
+            // Start von Hand ist der jüngste Start: ein geplantes Ausschalten eines Weckers entfällt dann.
+            if ($result === 'started' && isset($definition['media'])) {
+                $this->NotifyMedia('MediaStarted', (string) $id, 0);
+            }
         }
         if (array_sum($results) === 0) {
             return ['error' => true, 'message' => $this->Translate('No actions are selected')];
@@ -642,6 +669,18 @@ class WakeUpManager extends IPSModuleStrict
                 $this->RejectValue('SetAction');
             }
         }
+        $runTime = null;
+        if (isset($value['RunTime'])) {
+            $runTime = $this->NormalizeRunTime($value['RunTime']);
+            if ($runTime === null) {
+                $this->RejectValue('SetAction');
+            }
+        }
+        $fade = $value['Fade'] ?? null;
+        $fadeEarly = $value['FadeEarly'] ?? null;
+        if (($fade !== null && !is_bool($fade)) || ($fadeEarly !== null && !is_bool($fadeEarly))) {
+            $this->RejectValue('SetAction');
+        }
         // Nur Aktionen der gewählten zentralen Instanz dürfen ausgewählt werden.
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
@@ -649,7 +688,7 @@ class WakeUpManager extends IPSModuleStrict
             $this->RejectValue('SetAction');
         }
 
-        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset]);
+        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset, 'RunTime' => $runTime, 'Fade' => $fade, 'FadeEarly' => $fadeEarly]);
     }
 
     // Ändert unter der Sperre nur die Zeile(n) der Aktion $id in den gespeicherten Rohdaten; alle anderen Zeilen,
@@ -699,18 +738,35 @@ class WakeUpManager extends IPSModuleStrict
         });
     }
 
-    // Setzt Active und Offset einer Auswahlzeile; ungültige gespeicherte Werte werden dabei durch gültige ersetzt.
-    // Liefert, ob sich die Zeile geändert hat. Weitere Felder der Zeile bleiben erhalten.
+    // Setzt Active, Offset und die Mediaplayer-Felder (RunTime, Fade, FadeEarly) einer Auswahlzeile; ungültige
+    // gespeicherte Werte werden dabei durch gültige ersetzt. Mediaplayer-Felder werden nur geschrieben, wenn sie geändert
+    // werden oder bereits vorhanden sind. Liefert, ob sich die Zeile geändert hat. Weitere Felder bleiben erhalten.
     private function ApplySelectionChange(object $row, array $change): bool
     {
-        $active = $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false);
-        $offset = $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0;
-        if (($row->Active ?? null) === $active && ($row->Offset ?? null) === $offset) {
-            return false;
+        $values = [
+            'Active' => $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false),
+            'Offset' => $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0
+        ];
+        $media = [
+            'RunTime'   => fn (mixed $value): int => $this->NormalizeRunTime($value) ?? 0,
+            'Fade'      => static fn (mixed $value): bool => is_bool($value) ? $value : true,
+            'FadeEarly' => static fn (mixed $value): bool => is_bool($value) ? $value : false
+        ];
+        foreach ($media as $field => $normalize) {
+            $value = $change[$field] ?? (property_exists($row, $field) ? $normalize($row->$field) : null);
+            if ($value !== null) {
+                $values[$field] = $value;
+            }
         }
-        $row->Active = $active;
-        $row->Offset = $offset;
-        return true;
+
+        $changed = false;
+        foreach ($values as $field => $value) {
+            if (($row->$field ?? null) !== $value) {
+                $row->$field = $value;
+                $changed = true;
+            }
+        }
+        return $changed;
     }
 
     // Zeitversatz in Minuten als int oder null, wenn ungültig (JSON kann ganze Zahlen auch als Float liefern).
@@ -720,6 +776,15 @@ class WakeUpManager extends IPSModuleStrict
             $offset = (int) $offset;
         }
         return is_int($offset) && abs($offset) <= self::MAX_OFFSET ? $offset : null;
+    }
+
+    // Abspielzeit in Minuten als int oder null, wenn ungültig.
+    private function NormalizeRunTime(mixed $runTime): ?int
+    {
+        if (is_float($runTime) && floor($runTime) === $runTime) {
+            $runTime = (int) $runTime;
+        }
+        return is_int($runTime) && $runTime >= 0 && $runTime <= self::MAX_RUN_TIME ? $runTime : null;
     }
 
     // Schreibt Einstellungen unter derselben Sperre wie die Weckroutine und berechnet danach den nächsten Zeitpunkt neu.
@@ -972,6 +1037,15 @@ class WakeUpManager extends IPSModuleStrict
                             $row['start'] = ['time' => $start->format('H:i'), 'days' => $interval->invert === 1 ? -$interval->days : $interval->days];
                         }
                     }
+                    // Abspielzeit nur, wenn die zentrale Aktion eine Ausschalt-Aktion hat
+                    if ($group === self::MEDIA_GROUP && $action['media']['stop'] !== null) {
+                        $row['runTime'] = $selection[$id]['RunTime'] ?? 0;
+                    }
+                    // Fading nur, wenn die zentrale Aktion eine Lautstärke-Variable hat
+                    if ($group === self::MEDIA_GROUP && $action['media']['volume'] !== null) {
+                        $row['fade'] = $selection[$id]['Fade'] ?? true;
+                        $row['fadeEarly'] = $selection[$id]['FadeEarly'] ?? false;
+                    }
                     $actions[] = $row;
                 }
                 if (count($actions) > 0) {
@@ -994,7 +1068,8 @@ class WakeUpManager extends IPSModuleStrict
             'hint'         => $hint,
             'groups'       => $groups,
             'templates'    => $this->TemplateNames(),
-            'maxOffset'    => self::MAX_OFFSET
+            'maxOffset'    => self::MAX_OFFSET,
+            'maxRunTime'   => self::MAX_RUN_TIME
         ], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
@@ -1016,6 +1091,11 @@ class WakeUpManager extends IPSModuleStrict
             ];
             if ($group === self::OFFSET_GROUP) {
                 $row['Offset'] = $selection[$id]['Offset'] ?? 0;
+            }
+            if ($group === self::MEDIA_GROUP) {
+                $row['RunTime'] = $selection[$id]['RunTime'] ?? 0;
+                $row['Fade'] = $selection[$id]['Fade'] ?? true;
+                $row['FadeEarly'] = $selection[$id]['FadeEarly'] ?? false;
             }
             $rows[] = $row;
         }
@@ -1046,18 +1126,59 @@ class WakeUpManager extends IPSModuleStrict
     // $pending: bereits als ausgeführt gespeicherte Aktionen, die noch auszuführen sind.
     private function Process(array $pending = []): void
     {
-        $due = [...$pending, ...$this->ProcessSchedule()];
+        ['actions' => $actions, 'stops' => $stops, 'steps' => $steps] = $this->ProcessSchedule();
+        $due = [...$pending, ...$actions];
         // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
         $this->UpdateTile();
 
-        // Aktionen außerhalb der Sperre starten (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind
-        // bereits als ausgeführt gespeichert, ein paralleler Aufruf startet sie deshalb nicht erneut.
+        // Aktionen außerhalb der Sperre ausführen (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind bereits
+        // als ausgeführt bzw. ausgeschaltet gespeichert, ein paralleler Aufruf führt sie deshalb nicht erneut aus.
+        foreach ($stops as $key) {
+            if (!$this->NotifyMedia('MediaStop', $key, $this->InstanceID)) {
+                $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+                $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+                $this->LogMessage(sprintf($this->Translate('Media player could not be switched off: %s'), $catalog[$key]['name'] ?? $key), KL_WARNING);
+            }
+        }
+
+        foreach ($steps as $step) {
+            // Fehler nur im Debug; das Fading endet dann beim nächsten Schritt, weil die Lautstärke abweicht.
+            $this->SetVolume($step['variable'], $step['value'], $step['key']);
+        }
+
+        $stopAt = [];
+        $fades = [];
         foreach ($due as $action) {
-            $this->RunAction($action['label'], $action['definition']);
+            $media = $action['definition']['media'] ?? null;
+            $volume = $media['volume'] ?? null;
+            // Vor dem Start mit Fading die Startlautstärke, ohne Fading gleich die Ziellautstärke setzen.
+            $fade = $volume !== null && $action['fade'] && $volume['start'] !== $volume['target'];
+            $initial = $volume === null ? null : ['variable' => $volume['variable'], 'value' => $fade ? $volume['start'] : $volume['target']];
+            $result = $this->RunAction($action['label'], $action['definition'], $initial);
+            // Nur tatsächlich gestartete Mediaplayer (nicht wegen ihrer Bedingung übersprungen) erhalten Fading und Ausschalten.
+            if ($result !== 'started' || $media === null) {
+                continue;
+            }
+            $this->NotifyMedia('MediaStarted', $action['key'], $this->InstanceID);
+            if ($media['stop'] !== null && $action['runTime'] > 0) {
+                // Abspielzeit ab dem Start, bei Fading vor der Weckzeit ab der Weckzeit
+                $stopAt[$action['key']] = ($action['fadeEarly'] ? $action['occurrence'] : time()) + $action['runTime'] * 60;
+            }
+            if ($fade) {
+                $state = $this->CreateFade($volume, time());
+                if ($state !== null) {
+                    $fades[$action['key']] = $state;
+                }
+            }
+        }
+        if ((count($stopAt) > 0 || count($fades) > 0) && $this->AddMediaState($stopAt, $fades)) {
+            // Timer auf Fading bzw. Ausschalten neu setzen
+            $this->Process();
         }
     }
 
-    // Plant den nächsten Zeitpunkt und liefert die fälligen Aktionen, die der Aufrufer ausführen muss.
+    // Plant den nächsten Zeitpunkt und liefert die fälligen Aktionen und auszuschaltenden Mediaplayer, die der Aufrufer
+    // ausführen muss.
     private function ProcessSchedule(): array
     {
         $semaphore = 'WUM_' . $this->InstanceID;
@@ -1066,31 +1187,234 @@ class WakeUpManager extends IPSModuleStrict
             $this->LogMessage($this->Translate('Wake-up routine could not be processed (semaphore busy)'), KL_WARNING);
             // Der Timer würde sonst erst nach seinem bisherigen, ggf. stundenlangen Intervall erneut auslösen.
             $this->SetTimerInterval(self::TIMER, 1000);
-            return [];
+            return ['actions' => [], 'stops' => [], 'steps' => []];
         }
 
         try {
             $now = time();
+            // Geplantes Ausschalten gilt unabhängig von Aktiv-Schalter und Einstellung (das Gerät läuft bereits).
+            $stops = $this->TakeDueStops($now);
+            $steps = $this->TakeDueFadeSteps($now);
 
             if (!$this->ReadAttributeBoolean('Active')) {
                 $this->ResetState();
-                $this->SetTimerInterval(self::TIMER, 0);
+                $this->ScheduleNext(null, $now);
                 $this->SetStatus(IS_INACTIVE);
-                return [];
+                return ['actions' => [], 'stops' => $stops, 'steps' => $steps];
             }
 
             $config = $this->LoadConfiguration();
             if ($config === null) {
-                $this->SetTimerInterval(self::TIMER, 0);
-                return [];
+                $this->ScheduleNext(null, $now);
+                return ['actions' => [], 'stops' => $stops, 'steps' => $steps];
             }
 
             $due = $this->TakeDueActions($config, $now);
             $this->ScheduleNext($config, $now);
-            return $due;
+            return ['actions' => $due, 'stops' => $stops, 'steps' => $steps];
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
+    }
+
+    // Geplantes Ausschalten je Aktions-ID. Nicht lesbare Daten werden verworfen (reine Verwaltungsdaten).
+    private function ReadPendingStops(): array
+    {
+        $pending = json_decode($this->ReadAttributeString('PendingStops'), true);
+        if (!is_array($pending)) {
+            $this->SendDebug('State', 'Planned switch-offs cannot be read, discarded', 0);
+            return [];
+        }
+        return array_filter($pending, 'is_int');
+    }
+
+    private function WritePendingStops(array $pending): void
+    {
+        $this->WriteAttributeString('PendingStops', json_encode((object) $pending));
+    }
+
+    // Entfernt die fälligen Einträge und liefert deren Aktions-IDs; nur unter der Sperre aufrufen.
+    private function TakeDueStops(int $now): array
+    {
+        $pending = $this->ReadPendingStops();
+        $due = array_keys(array_filter($pending, static fn (int $time): bool => $time <= $now));
+        if (count($due) > 0) {
+            foreach ($due as $key) {
+                $this->SendDebug('Execute', 'Switching off ' . $key . ' (planned for ' . $this->FormatTime($pending[$key]) . ')', 0);
+                unset($pending[$key]);
+            }
+            $this->WritePendingStops($pending);
+
+            // Ausgeschaltete Mediaplayer nicht weiter lauter stellen
+            $fades = $this->ReadFades();
+            if (count(array_intersect_key($fades, array_flip($due))) > 0) {
+                $this->WriteFades(array_diff_key($fades, array_flip($due)));
+            }
+        }
+        return array_map('strval', $due);
+    }
+
+    // Laufendes Fading je Aktions-ID. Nicht lesbare Einträge werden verworfen (reine Verwaltungsdaten).
+    private function ReadFades(): array
+    {
+        $fades = json_decode($this->ReadAttributeString('Fades'), true);
+        if (!is_array($fades)) {
+            $this->SendDebug('State', 'Fading state cannot be read, discarded', 0);
+            return [];
+        }
+        $number = static fn (mixed $value): bool => is_int($value) || is_float($value);
+        return array_filter($fades, static fn (mixed $fade): bool => is_array($fade)
+            && is_int($fade['Variable'] ?? null) && $number($fade['Start'] ?? null) && $number($fade['Target'] ?? null)
+            && is_bool($fade['Integer'] ?? null) && is_int($fade['Begin'] ?? null) && is_int($fade['Duration'] ?? null)
+            && is_int($fade['Steps'] ?? null) && $fade['Steps'] > 0 && is_int($fade['Done'] ?? null) && $number($fade['Last'] ?? null));
+    }
+
+    private function WriteFades(array $fades): void
+    {
+        $this->WriteAttributeString('Fades', json_encode((object) $fades));
+    }
+
+    // Neues Fading für eine gestartete Mediaplayer-Aktion. Bei Integer-Variablen ändert jeder Schritt die Lautstärke um
+    // mindestens eine Stufe, in jedem Fall liegen zwischen zwei Schritten mindestens 15 Sekunden. Last ist die vor dem
+    // Start gesetzte Startlautstärke. Liefert null, wenn die Variable nicht lesbar ist oder kein Schritt nötig ist.
+    private function CreateFade(array $volume, int $begin): ?array
+    {
+        $variable = $volume['variable'];
+        $type = $this->CallCatalog(static fn () => IPS_GetVariable($variable)['VariableType'] ?? null, 'Volume variable not accessible');
+        if ($type !== VARIABLETYPE_INTEGER && $type !== VARIABLETYPE_FLOAT) {
+            $this->SendDebug('Fade', 'Volume variable ' . $variable . ' is not a number variable, no fading', 0);
+            return null;
+        }
+        $integer = $type === VARIABLETYPE_INTEGER;
+        $duration = $volume['duration'] * 60;
+        $steps = intdiv($duration, self::FADE_MIN_INTERVAL);
+        if ($integer) {
+            $steps = min($steps, (int) abs(round($volume['target']) - round($volume['start'])));
+        }
+        if ($steps < 1) {
+            return null;
+        }
+        $fade = [
+            'Variable' => $variable,
+            'Start'    => $volume['start'],
+            'Target'   => $volume['target'],
+            'Integer'  => $integer,
+            'Begin'    => $begin,
+            'Duration' => $duration,
+            'Steps'    => $steps,
+            'Done'     => 0
+        ];
+        $fade['Last'] = $this->FadeValue($fade, 0);
+        return $fade;
+    }
+
+    // Lautstärke nach $step von Steps Schritten (linear), bei Integer-Variablen gerundet.
+    private function FadeValue(array $fade, int $step): float
+    {
+        $value = $fade['Start'] + ($fade['Target'] - $fade['Start']) * $step / $fade['Steps'];
+        return $fade['Integer'] ? round($value) : $value;
+    }
+
+    private function NextFadeStep(array $fade): int
+    {
+        return $fade['Begin'] + (int) ceil(($fade['Done'] + 1) * $fade['Duration'] / $fade['Steps']);
+    }
+
+    // Ermittelt die fälligen Fading-Schritte und speichert den neuen Stand; nur unter der Sperre aufrufen. Verpasste
+    // Schritte (z. B. nach einem Neustart) werden nicht einzeln nachgeholt: gesetzt wird die Lautstärke für jetzt. Ist
+    // das Fading schon länger vorbei, wird nichts mehr gesetzt.
+    private function TakeDueFadeSteps(int $now): array
+    {
+        $fades = $this->ReadFades();
+        $steps = [];
+        $changed = false;
+        foreach ($fades as $key => $fade) {
+            if ($this->NextFadeStep($fade) > $now) {
+                continue;
+            }
+            $changed = true;
+            unset($fades[$key]);
+            if ($now > $fade['Begin'] + $fade['Duration'] + 60) {
+                $this->SendDebug('Fade', $key . ': fading already over, volume not changed', 0);
+                continue;
+            }
+            // Ab dem zweiten Schritt: Weicht die Lautstärke ab, wurde sie von Hand oder durch einen anderen Start geändert.
+            // Beim ersten Schritt nicht prüfen, da manche Geräte beim Start der Wiedergabe ihre Lautstärke selbst setzen.
+            if ($fade['Done'] > 0) {
+                $variable = $fade['Variable'];
+                $current = $this->CallCatalog(static fn () => GetValue($variable), 'Volume variable not accessible');
+                if ((!is_int($current) && !is_float($current)) || abs($current - $fade['Last']) > self::VOLUME_TOLERANCE) {
+                    $this->SendDebug('Fade', $key . ': volume was changed, fading stopped', 0);
+                    continue;
+                }
+            }
+            $step = max($fade['Done'] + 1, min($fade['Steps'], intdiv(($now - $fade['Begin']) * $fade['Steps'], $fade['Duration'])));
+            $value = $this->FadeValue($fade, $step);
+            $steps[] = ['key' => (string) $key, 'variable' => $fade['Variable'], 'value' => $value];
+            if ($step < $fade['Steps']) {
+                $fades[$key] = ['Done' => $step, 'Last' => $value] + $fade;
+            }
+        }
+        if ($changed) {
+            $this->WriteFades($fades);
+        }
+        return $steps;
+    }
+
+    // Setzt die Lautstärke über die Aktion der Variable, bei Integer-Variablen gerundet. Liefert, ob es gelungen ist.
+    private function SetVolume(int $variable, float $value, string $label): bool
+    {
+        $type = $this->CallCatalog(static fn () => IPS_GetVariable($variable)['VariableType'] ?? null, 'Volume variable not accessible');
+        if ($type !== VARIABLETYPE_INTEGER && $type !== VARIABLETYPE_FLOAT) {
+            $this->SendDebug('Volume', $label . ': volume variable ' . $variable . ' is not available', 0);
+            return false;
+        }
+        $setting = $type === VARIABLETYPE_INTEGER ? (int) round($value) : $value;
+        if ($this->CallCatalog(static fn () => RequestAction($variable, $setting), 'Volume could not be set') !== true) {
+            return false;
+        }
+        $this->SendDebug('Volume', $label . ': volume set to ' . $setting, 0);
+        return true;
+    }
+
+    private function AddMediaState(array $stopAt, array $fades): bool
+    {
+        $semaphore = 'WUM_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Process', 'Semaphore could not be entered', 0);
+            $this->LogMessage($this->Translate('Fading or switch-off of a media player could not be scheduled (semaphore busy)'), KL_WARNING);
+            return false;
+        }
+        try {
+            if (count($stopAt) > 0) {
+                $pending = $this->ReadPendingStops();
+                foreach ($stopAt as $key => $time) {
+                    $this->SendDebug('Schedule', 'Switch-off of ' . $key . ' planned for ' . $this->FormatTime($time), 0);
+                    $pending[$key] = $time;
+                }
+                $this->WritePendingStops($pending);
+            }
+            if (count($fades) > 0) {
+                $current = $this->ReadFades();
+                foreach ($fades as $key => $fade) {
+                    $this->SendDebug('Schedule', 'Fading of ' . $key . ' in ' . $fade['Steps'] . ' steps until ' . $this->FormatTime($fade['Begin'] + $fade['Duration']), 0);
+                    $current[$key] = $fade;
+                }
+                $this->WriteFades($current);
+            }
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+        return true;
+    }
+
+    // Meldet Start bzw. Ausschalten einer Mediaplayer-Aktion an die zentrale Instanz; diese schaltet nur für den
+    // jüngsten Start aus. $owner = 0: Start von Hand.
+    private function NotifyMedia(string $ident, string $key, int $owner): bool
+    {
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $payload = (string) json_encode(['ID' => $key, 'Owner' => $owner]);
+        return $actionInstance > 0 && $this->CallCatalog(static fn () => IPS_RequestAction($actionInstance, $ident, $payload)) === true;
     }
 
     // Meldet einen Fehler nur beim Wechsel in diesen Status im Meldungsfenster, nicht bei jeder Neuberechnung.
@@ -1148,11 +1472,21 @@ class WakeUpManager extends IPSModuleStrict
             // Nur Heizungsaktionen haben einen Zeitversatz. Ohne zentrale Aktionen ist die Gruppe unbekannt; die
             // Aktion ist dann ohnehin nicht ausführbar, geplant wird mit dem gespeicherten Versatz.
             $group = $catalog[$id]['group'] ?? null;
-            $offset = ($group === null || $group === self::OFFSET_GROUP) ? $entry['Offset'] : 0;
+            $offset = ($group === null || $group === self::OFFSET_GROUP) ? $entry['Offset'] * 60 : 0;
+            // Mediaplayer mit Fading vor der Weckzeit starten um die Fading-Dauer früher; zur Weckzeit ist die
+            // Ziellautstärke erreicht.
+            $volume = $catalog[$id]['media']['volume'] ?? null;
+            $fadeEarly = $volume !== null && $entry['Fade'] && $entry['FadeEarly'] && $volume['start'] !== $volume['target'];
+            if ($fadeEarly) {
+                $offset = -$volume['duration'] * 60;
+            }
             $actions[] = [
-                'key'    => (string) $id,
-                'label'  => $catalog[$id]['name'] ?? (string) $id,
-                'offset' => $offset * 60
+                'key'       => (string) $id,
+                'label'     => $catalog[$id]['name'] ?? (string) $id,
+                'offset'    => $offset,
+                'runTime'   => $entry['RunTime'],
+                'fade'      => $entry['Fade'],
+                'fadeEarly' => $fadeEarly
             ];
         }
 
@@ -1199,9 +1533,25 @@ class WakeUpManager extends IPSModuleStrict
                 $invalid++;
                 continue;
             }
+            $runTime = $this->NormalizeRunTime($row['RunTime'] ?? 0);
+            if ($runTime === null) {
+                $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid run time', 0);
+                $invalid++;
+                continue;
+            }
+            $fade = $row['Fade'] ?? true;
+            $fadeEarly = $row['FadeEarly'] ?? false;
+            if (!is_bool($fade) || !is_bool($fadeEarly)) {
+                $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid fading', 0);
+                $invalid++;
+                continue;
+            }
             $selection[$id] = [
-                'Active' => ($row['Active'] ?? false) === true,
-                'Offset' => $offset
+                'Active'    => ($row['Active'] ?? false) === true,
+                'Offset'    => $offset,
+                'RunTime'   => $runTime,
+                'Fade'      => $fade,
+                'FadeEarly' => $fadeEarly
             ];
         }
         return $selection;
@@ -1242,29 +1592,69 @@ class WakeUpManager extends IPSModuleStrict
             }
             $name = is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $label;
 
-            // Der Wert von SelectAction ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
-            $action = $row['Action'] ?? null;
-            if (is_string($action)) {
-                $action = json_decode($action, true);
-            }
-            $valid = is_array($action) && is_string($action['actionID'] ?? null) && $action['actionID'] !== '' && is_array($action['parameters'] ?? []);
-            if (!$valid) {
+            $action = $this->NormalizeAction($row['Action'] ?? null);
+            if ($action === null) {
                 $this->SendDebug('Catalog', $name . ': no valid action selected', 0);
             }
             $catalog[$id] = [
                 'name'       => $name,
                 'group'      => $group,
-                'actionID'   => $valid ? $action['actionID'] : null,
-                'parameters' => $valid ? ($action['parameters'] ?? []) : [],
+                'actionID'   => $action['actionID'] ?? null,
+                'parameters' => $action['parameters'] ?? [],
                 'condition'  => $this->NormalizeCondition($row['Condition'] ?? null)
             ];
+            if ($group === self::MEDIA_GROUP) {
+                $catalog[$id]['media'] = $this->NormalizeMedia($name, $row);
+            }
         }
         return $catalog;
     }
 
+    // Der Wert von SelectAction ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
+    // Liefert actionID und parameters oder null, wenn keine gültige Aktion ausgewählt ist.
+    private function NormalizeAction(mixed $value): ?array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+        if (!is_array($value) || !is_string($value['actionID'] ?? null) || $value['actionID'] === '' || !is_array($value['parameters'] ?? [])) {
+            return null;
+        }
+        return ['actionID' => $value['actionID'], 'parameters' => $value['parameters'] ?? []];
+    }
+
+    // Zusatzwerte einer Mediaplayer-Aktion. Ungültige Werte werden nicht verwendet (Lautstärke bzw. Ausschalten
+    // entfallen), die zentralen Daten bleiben unverändert. volume = null: keine bzw. keine gültige Lautstärke-Variable.
+    // VolumeControl bzw. SwitchOff = 0 schaltet Lautstärke bzw. Ausschalten ab; die Werte darunter bleiben in der Zeile
+    // erhalten. Fehlen die Felder (Zeilen vor deren Einführung), entscheiden Variable bzw. Ausschalt-Aktion allein.
+    private function NormalizeMedia(string $name, array $row): array
+    {
+        $volume = null;
+        $variable = ($row['VolumeControl'] ?? 1) === 0 ? 0 : ($row['VolumeVariable'] ?? 0);
+        if (is_int($variable) && $variable > 0) {
+            $start = $row['StartVolume'] ?? null;
+            $target = $row['TargetVolume'] ?? null;
+            $duration = $row['FadeDuration'] ?? null;
+            $numeric = static fn (mixed $value): bool => (is_int($value) || is_float($value)) && is_finite((float) $value);
+            if ($numeric($start) && $numeric($target) && is_int($duration) && $duration >= self::MIN_FADE_DURATION && $duration <= self::MAX_FADE_DURATION) {
+                $volume = ['variable' => $variable, 'start' => (float) $start, 'target' => (float) $target, 'duration' => $duration];
+            } else {
+                $this->SendDebug('Catalog', $name . ': invalid volume settings, volume not used', 0);
+            }
+        } elseif ($variable !== 0) {
+            $this->SendDebug('Catalog', $name . ': invalid volume variable, volume not used', 0);
+        } elseif (($row['VolumeControl'] ?? null) === 1) {
+            // Die Konsole verlangt bei sichtbarer Variablenauswahl keine Auswahl.
+            $this->SendDebug('Catalog', $name . ': volume enabled but no volume variable selected, volume not used', 0);
+        }
+
+        $stop = ($row['SwitchOff'] ?? 1) === 0 ? null : $this->NormalizeAction($row['StopAction'] ?? null);
+        return ['volume' => $volume, 'stop' => $stop];
+    }
+
     // Zugriff auf die zentrale Instanz. Während diese neu geladen wird (z. B. Modul-Update), melden die
     // IPS-Funktionen Warnungen; diese würden sonst z. B. das Konfigurationsformular unbrauchbar machen.
-    private function CallCatalog(callable $call): mixed
+    private function CallCatalog(callable $call, string $failure = 'Central instance not reachable'): mixed
     {
         $error = null;
         set_error_handler(static function (int $number, string $message) use (&$error): bool
@@ -1281,7 +1671,7 @@ class WakeUpManager extends IPSModuleStrict
         }
 
         if ($error !== null) {
-            $this->SendDebug('Catalog', 'Central instance not reachable: ' . $error, 0);
+            $this->SendDebug('Catalog', $failure . ': ' . $error, 0);
             return null;
         }
         return $result;
@@ -1342,15 +1732,21 @@ class WakeUpManager extends IPSModuleStrict
         $actions = [];
         foreach ($due as $event) {
             $actions[] = [
+                'key'        => $event['action']['key'],
                 'label'      => $event['action']['label'],
-                'definition' => $config['catalog'][$event['action']['key']] ?? null
+                'definition' => $config['catalog'][$event['action']['key']] ?? null,
+                'runTime'    => $event['action']['runTime'],
+                'fade'       => $event['action']['fade'],
+                'fadeEarly'  => $event['action']['fadeEarly'],
+                'occurrence' => $event['occurrence']
             ];
         }
         return $actions;
     }
 
     // Startet eine Aktion, sofern ihre optionale Bedingung erfüllt ist. Liefert 'started', 'skipped' oder 'failed'.
-    private function RunAction(string $label, ?array $definition): string
+    // $volume (variable, value): Lautstärke, die bei erfüllter Bedingung vor dem Start gesetzt wird (Mediaplayer).
+    private function RunAction(string $label, ?array $definition, ?array $volume = null): string
     {
         if ($definition === null || $definition['actionID'] === null) {
             $this->SendDebug('Execute', $label . ' not executable (central action not available)', 0);
@@ -1369,6 +1765,11 @@ class WakeUpManager extends IPSModuleStrict
                 $this->SendDebug('Execute', $label . ' skipped (condition not met)', 0);
                 return 'skipped';
             }
+        }
+
+        if ($volume !== null && !$this->SetVolume($volume['variable'], $volume['value'], $label)) {
+            // Die Wiedergabe trotzdem starten
+            $this->LogMessage(sprintf($this->Translate('Volume could not be set: %s'), $label), KL_WARNING);
         }
 
         try {
@@ -1422,9 +1823,14 @@ class WakeUpManager extends IPSModuleStrict
         return $condition;
     }
 
-    private function ScheduleNext(array $config, int $now): void
+    // $config = null: ungültige Einstellung oder Wecker aus; dann nur das geplante Ausschalten.
+    private function ScheduleNext(?array $config, int $now): void
     {
-        ['next' => $next, 'wakeUp' => $nextWakeUp] = $this->GetNextPoints($config, $now);
+        ['next' => $next, 'wakeUp' => $nextWakeUp] = $config === null ? ['next' => null, 'wakeUp' => null] : $this->GetNextPoints($config, $now);
+        $times = [...array_values($this->ReadPendingStops()), ...array_map(fn (array $fade): int => $this->NextFadeStep($fade), array_values($this->ReadFades()))];
+        foreach ($times as $time) {
+            $next = $next === null ? $time : min($next, $time);
+        }
 
         if ($next === null) {
             $this->SendDebug('Schedule', 'No next point in time found', 0);
