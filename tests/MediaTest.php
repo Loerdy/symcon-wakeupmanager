@@ -43,6 +43,28 @@ class MediaTest extends WakeUpManagerTestCase
         $this->assertNull($media['stop']);
     }
 
+    public function testDisabledVolumeAndSwitchOffAreNotUsedButKept(): void
+    {
+        $row = ['VolumeControl' => 0, 'SwitchOff' => 0] + $this->mediaRow();
+        $catalogID = $this->createMediaCatalog($row);
+
+        $media = $this->call($this->createManager($catalogID), 'LoadCatalog', $catalogID)['M']['media'];
+
+        $this->assertSame(['volume' => null, 'stop' => null], $media);
+        // Die Werte unter der abgeschalteten Option bleiben in der zentralen Liste erhalten
+        $this->assertSame([$row], json_decode(IPS_GetProperty($catalogID, 'ActionsMedia'), true));
+    }
+
+    public function testRowsWithoutOptionFieldsUseVariableAndStopAction(): void
+    {
+        $row = $this->mediaRow();
+        unset($row['VolumeControl'], $row['SwitchOff']);
+        $media = $this->loadMedia($row);
+
+        $this->assertSame($this->volume, $media['volume']['variable']);
+        $this->assertNotNull($media['stop']);
+    }
+
     public function testInvalidVolumeSettingsAreNotUsed(): void
     {
         foreach ([['StartVolume' => 'loud'], ['TargetVolume' => null], ['FadeDuration' => 0], ['FadeDuration' => 121], ['FadeDuration' => 2.5], ['VolumeVariable' => 'abc']] as $change) {
@@ -74,10 +96,12 @@ class MediaTest extends WakeUpManagerTestCase
             'Name'           => 'Radio',
             'Action'         => json_encode(['actionID' => self::RECORD_ACTION, 'parameters' => ['name' => 'Radio']]),
             'Condition'      => '',
+            'VolumeControl'  => 1,
             'VolumeVariable' => $this->volume,
             'StartVolume'    => 10,
             'TargetVolume'   => 30.5,
             'FadeDuration'   => 15,
+            'SwitchOff'      => 1,
             'StopAction'     => json_encode(['actionID' => self::RECORD_ACTION, 'parameters' => ['name' => 'Stop']])
         ];
     }

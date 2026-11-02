@@ -1281,10 +1281,12 @@ class WakeUpManager extends IPSModuleStrict
 
     // Zusatzwerte einer Mediaplayer-Aktion. Ungültige Werte werden nicht verwendet (Lautstärke bzw. Ausschalten
     // entfallen), die zentralen Daten bleiben unverändert. volume = null: keine bzw. keine gültige Lautstärke-Variable.
+    // VolumeControl bzw. SwitchOff = 0 schaltet Lautstärke bzw. Ausschalten ab; die Werte darunter bleiben in der Zeile
+    // erhalten. Fehlen die Felder (Zeilen vor deren Einführung), entscheiden Variable bzw. Ausschalt-Aktion allein.
     private function NormalizeMedia(string $name, array $row): array
     {
         $volume = null;
-        $variable = $row['VolumeVariable'] ?? 0;
+        $variable = ($row['VolumeControl'] ?? 1) === 0 ? 0 : ($row['VolumeVariable'] ?? 0);
         if (is_int($variable) && $variable > 0) {
             $start = $row['StartVolume'] ?? null;
             $target = $row['TargetVolume'] ?? null;
@@ -1299,7 +1301,7 @@ class WakeUpManager extends IPSModuleStrict
             $this->SendDebug('Catalog', $name . ': invalid volume variable, volume not used', 0);
         }
 
-        $stop = $this->NormalizeAction($row['StopAction'] ?? null);
+        $stop = ($row['SwitchOff'] ?? 1) === 0 ? null : $this->NormalizeAction($row['StopAction'] ?? null);
         return ['volume' => $volume, 'stop' => $stop];
     }
 

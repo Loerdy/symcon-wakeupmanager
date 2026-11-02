@@ -40,10 +40,13 @@ Aktionen der Gruppe **Mediaplayer** haben im Bearbeitungsfenster zusätzliche Fe
 | Feld | Beschreibung |
 | --- | --- |
 | Startaktion | Startet die Wiedergabe, z. B. einen Radiosender. |
-| Lautstärke-Variable | Optional. Integer- oder Float-Variable mit Aktion, über die die Lautstärke gesetzt wird (unabhängig vom Gerät). Ohne Variable wird keine Lautstärke gesetzt. |
-| Startlautstärke, Ziellautstärke | In der Einheit der Variable, z. B. 0–100 oder 0–1. |
-| Fading-Dauer | 1 bis 120 Minuten, in denen die Lautstärke von der Start- zur Ziellautstärke steigt. |
-| Ausschalt-Aktion | Optional, z. B. Wiedergabe stoppen. |
+| Lautstärke | **Lautstärke nicht setzen** oder **Lautstärke über eine Variable setzen**. Nur bei der zweiten Option erscheinen: |
+| – Lautstärke-Variable | Integer- oder Float-Variable mit Aktion, über die die Lautstärke gesetzt wird (unabhängig vom Gerät). |
+| – Startlautstärke, Ziellautstärke | In der Einheit der Variable, z. B. 0–100 oder 0–1. |
+| – Fading-Dauer | 1 bis 120 Minuten, in denen die Lautstärke von der Start- zur Ziellautstärke steigt. |
+| Ausschalten | **Keine Ausschalt-Aktion** oder **Mit Ausschalt-Aktion**; bei der zweiten Option erscheint die **Ausschalt-Aktion**, z. B. Wiedergabe stoppen. |
+
+Felder unter einer nicht gewählten Option werden nicht geprüft und nicht verwendet; ihre Werte bleiben aber gespeichert, falls die Option später wieder gewählt wird.
 
 In dieser Entwicklungsversion führen die Wecker nur die Startaktion aus. Lautstärke, Fading und Ausschalten nach einer am Wecker eingestellten Abspielzeit folgen in den nächsten Schritten.
 

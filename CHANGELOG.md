@@ -8,7 +8,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ### Hinzugefügt
 
-- **WakeUpActions:** Neue Gruppe **Mediaplayer** mit Startaktion, optionaler Lautstärke-Variable, Start- und Ziellautstärke, Fading-Dauer und optionaler Ausschalt-Aktion. Die Wecker zeigen die Gruppe an und führen bisher die Startaktion zur Weckzeit aus; Lautstärke, Fading und Ausschalten folgen. Mediaplayer, die bisher unter „Sonstiges“ stehen, müssen dort neu angelegt und in den Weckern neu ausgewählt werden.
+- **WakeUpActions:** Neue Gruppe **Mediaplayer** mit Startaktion und optional Lautstärke (Variable, Start- und Ziellautstärke, Fading-Dauer) sowie Ausschalt-Aktion. Die Wecker zeigen die Gruppe an und führen bisher die Startaktion zur Weckzeit aus; Lautstärke, Fading und Ausschalten folgen. Mediaplayer, die bisher unter „Sonstiges“ stehen, müssen dort neu angelegt und in den Weckern neu ausgewählt werden.
 
 ### Geändert
 
