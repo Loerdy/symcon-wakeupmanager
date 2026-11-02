@@ -9,7 +9,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 ### Geändert
 
 - Kachel (große Ansicht): Die Aktionsgruppen zeigen ein passendes Icon (Lampe, Rollladen, Thermometer, Noten, Stift).
-- Kachel: Neuer Umschalter **Alle | Ausgewählte** rechts über den Aktionen, um nur die ausgewählten Aktionen anzuzeigen. Die Wahl wird im Browser bzw. in der App gemerkt.
+- Kachel: Neuer Umschalter **Alle | Ausgewählte** rechts über den Aktionen, um nur die ausgewählten Aktionen anzuzeigen. Die Wahl wird je Wecker gespeichert und gilt auf allen Geräten, auch per `IPS_RequestAction` (`SetSelectedOnly`).
 - Kachel: Der Zeitversatz der Heizung wird über einen Stepper (− Wert min +) eingestellt; die Schaltflächen ändern in 5-Minuten-Schritten, genaue Werte lassen sich weiterhin eintippen.
 
 ## [1.3.1] - 2026-11-01

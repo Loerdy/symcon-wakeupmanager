@@ -713,6 +713,7 @@
             return;
         }
         deferred = false;
+        selectedOnly = state.selectedOnly === true;
 
         const compactTime = document.getElementById('compactTime');
         const compactDay = document.getElementById('compactDay');
@@ -983,14 +984,8 @@
         }
     }
 
-    // Filter "nur ausgewählte Aktionen" gilt nur für die Anzeige und wird lokal im Browser gemerkt, da die große
-    // Ansicht bei jedem Öffnen neu geladen wird. Ist der Speicher nicht verfügbar, gilt er bis zum nächsten Laden.
-    const FILTER_KEY = 'WakeUpManager.selectedOnly';
+    // Filter "nur ausgewählte Aktionen": reine Anzeige, je Wecker im Modul gespeichert.
     let selectedOnly = false;
-    try {
-        selectedOnly = window.localStorage.getItem(FILTER_KEY) === '1';
-    } catch (e) {
-    }
 
     function renderFilter() {
         document.getElementById('actionsHeader').hidden = state.groups.length === 0;
@@ -1187,15 +1182,17 @@
 
     for (const button of document.getElementById('filter').children) {
         button.addEventListener('click', function () {
-            selectedOnly = button.dataset.filter === 'selected';
-            try {
-                window.localStorage.setItem(FILTER_KEY, selectedOnly ? '1' : '0');
-            } catch (e) {
+            if (state === null) {
+                return;
             }
             flushOffset();
-            if (state !== null) {
-                render();
+            const value = button.dataset.filter === 'selected';
+            if (value !== state.selectedOnly) {
+                // Sofort umschalten; die Antwort des Moduls bestätigt den Wert.
+                state.selectedOnly = value;
+                send('SetSelectedOnly', value);
             }
+            render();
         });
     }
 

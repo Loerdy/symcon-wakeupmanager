@@ -96,6 +96,31 @@ class SettingsTest extends WakeUpManagerTestCase
         $this->assertSame($stored, $this->call($manager, 'ReadAttributeString', 'WakeUpTime'));
     }
 
+    public function testSelectedOnlyFilterIsStoredPerAlarm(): void
+    {
+        $manager = $this->createActiveManager(3600);
+        $other = $this->createActiveManager(3600);
+
+        // Die Kachel sendet JSON, Skripte bool
+        $manager->RequestAction('SetSelectedOnly', 'true');
+        $this->assertTrue($this->call($manager, 'ReadAttributeBoolean', 'SelectedOnly'));
+        $this->assertTrue(json_decode($this->call($manager, 'GetTileState'), true)['selectedOnly']);
+        $this->assertFalse(json_decode($this->call($other, 'GetTileState'), true)['selectedOnly']);
+
+        foreach (['1', 'yes', 1, null] as $value) {
+            try {
+                $manager->RequestAction('SetSelectedOnly', $value);
+                $this->fail('Value accepted: ' . var_export($value, true));
+            } catch (Exception $e) {
+                $this->assertSame('Invalid value', $e->getMessage());
+            }
+        }
+        $this->assertTrue($this->call($manager, 'ReadAttributeBoolean', 'SelectedOnly'));
+
+        $manager->RequestAction('SetSelectedOnly', false);
+        $this->assertFalse($this->call($manager, 'ReadAttributeBoolean', 'SelectedOnly'));
+    }
+
     // Aktiver Wecker, alle Wochentage, Lampe und Heizung (Zeitversatz 0) ausgewählt, Weckzeit $offset Sekunden ab jetzt.
     private function createActiveManager(int $offset, array $attributes = [], bool $apply = true): WakeUpManager
     {

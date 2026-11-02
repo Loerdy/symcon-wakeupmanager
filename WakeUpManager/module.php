@@ -81,6 +81,8 @@ class WakeUpManager extends IPSModuleStrict
         $this->RegisterAttributeString('Selection', '[]');
         // Vom Benutzer in der Kachel gewählte Darstellung der Weckzeit
         $this->RegisterAttributeString('DisplayStyle', 'standard');
+        // Vom Benutzer in der Kachel gewählter Filter: nur ausgewählte Aktionen anzeigen
+        $this->RegisterAttributeBoolean('SelectedOnly', false);
         // Vorlagen (z. B. Früh-/Spätschicht): [{"Name": "...", "Settings": {"<Attribut>": <Rohwert>, ...}}, ...]
         $this->RegisterAttributeString('Templates', '[]');
 
@@ -337,6 +339,18 @@ class WakeUpManager extends IPSModuleStrict
                 // Reine Darstellung: keine Neuberechnung des Weckers nötig.
                 if ($this->ReadAttributeString('DisplayStyle') !== $Value) {
                     $this->WriteAttributeString('DisplayStyle', $Value);
+                }
+                $this->UpdateTile();
+                break;
+            case 'SetSelectedOnly':
+                // Die Kachel sendet den Wert JSON-kodiert, Skripte als bool.
+                $selectedOnly = is_string($Value) ? json_decode($Value) : $Value;
+                if (!is_bool($selectedOnly)) {
+                    $this->RejectValue($Ident);
+                }
+                // Reine Darstellung: keine Neuberechnung des Weckers nötig.
+                if ($this->ReadAttributeBoolean('SelectedOnly') !== $selectedOnly) {
+                    $this->WriteAttributeBoolean('SelectedOnly', $selectedOnly);
                 }
                 $this->UpdateTile();
                 break;
@@ -967,19 +981,20 @@ class WakeUpManager extends IPSModuleStrict
         }
 
         return (string) json_encode([
-            'active'    => $active,
-            'icon'      => $this->ReadPropertyString('Icon'),
-            'style'     => $this->ReadAttributeString('DisplayStyle'),
-            'status'    => $status,
-            'time'      => $time === null ? null : sprintf('%02d:%02d', $time['hour'], $time['minute']),
-            'separate'  => $this->ReadAttributeBoolean('SeparateWeekend'),
-            'weekend'   => $weekendTime === null ? null : sprintf('%02d:%02d', $weekendTime['hour'], $weekendTime['minute']),
-            'weekdays'  => $weekdays === null ? null : array_keys($weekdays),
-            'next'      => $next,
-            'hint'      => $hint,
-            'groups'    => $groups,
-            'templates' => $this->TemplateNames(),
-            'maxOffset' => self::MAX_OFFSET
+            'active'       => $active,
+            'icon'         => $this->ReadPropertyString('Icon'),
+            'style'        => $this->ReadAttributeString('DisplayStyle'),
+            'selectedOnly' => $this->ReadAttributeBoolean('SelectedOnly'),
+            'status'       => $status,
+            'time'         => $time === null ? null : sprintf('%02d:%02d', $time['hour'], $time['minute']),
+            'separate'     => $this->ReadAttributeBoolean('SeparateWeekend'),
+            'weekend'      => $weekendTime === null ? null : sprintf('%02d:%02d', $weekendTime['hour'], $weekendTime['minute']),
+            'weekdays'     => $weekdays === null ? null : array_keys($weekdays),
+            'next'         => $next,
+            'hint'         => $hint,
+            'groups'       => $groups,
+            'templates'    => $this->TemplateNames(),
+            'maxOffset'    => self::MAX_OFFSET
         ], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
