@@ -288,7 +288,7 @@
         {
             "type": "List",
             "name": "ActionsMedia",
-            "caption": "Media players",
+            "caption": "Media players (run time in minutes until the switch-off action, 0 = do not switch off)",
             "rowCount": 4,
             "add": false,
             "delete": true,
@@ -310,6 +310,18 @@
                     "caption": "Condition",
                     "name": "Condition",
                     "width": "110px"
+                },
+                {
+                    "caption": "Run time",
+                    "name": "RunTime",
+                    "width": "160px",
+                    "align": "right",
+                    "edit": {
+                        "type": "NumberSpinner",
+                        "suffix": " min",
+                        "minimum": 0,
+                        "maximum": 720
+                    }
                 },
                 {
                     "name": "ID",

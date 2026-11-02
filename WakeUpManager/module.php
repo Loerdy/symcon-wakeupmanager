@@ -10,6 +10,9 @@ class WakeUpManager extends IPSModuleStrict
     // Maximaler Zeitversatz einer Aktion in Minuten (vorher bzw. nachher).
     private const MAX_OFFSET = 1440;
 
+    // Maximale Abspielzeit einer Mediaplayer-Aktion bis zum Ausschalten in Minuten; 0 = nicht ausschalten.
+    private const MAX_RUN_TIME = 720;
+
     private const TIMER = 'WakeUpTimer';
 
     private const ACTIONS_MODULE_ID = '{4E963960-1F66-A246-3BC9-BA42E525A6F7}';
@@ -96,6 +99,9 @@ class WakeUpManager extends IPSModuleStrict
         $this->RegisterAttributeInteger('LastProcessed', -1);
         // Bereits ausgeführte Aktionen je Weckvorgang: {"<Wecktag Y-m-d>": ["<Aktions-ID>", ...]}
         $this->RegisterAttributeString('Executed', '{}');
+        // Geplantes Ausschalten gestarteter Mediaplayer: {"<Aktions-ID>": <Unix-Zeitstempel>}. Bleibt bei Deaktivieren
+        // des Weckers und Neustart erhalten und wird auch verspätet ausgeführt.
+        $this->RegisterAttributeString('PendingStops', '{}');
 
         $this->RegisterTimer(self::TIMER, 0, 'IPS_RequestAction($_IPS[\'TARGET\'], \'ProcessTimer\', 0);');
 
@@ -595,7 +601,12 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             $this->SendDebug('Run', 'Starting ' . $definition['name'], 0);
-            $results[$this->RunAction($definition['name'], $definition)]++;
+            $result = $this->RunAction($definition['name'], $definition);
+            $results[$result]++;
+            // Start von Hand ist der jüngste Start: ein geplantes Ausschalten eines Weckers entfällt dann.
+            if ($result === 'started' && isset($definition['media'])) {
+                $this->NotifyMedia('MediaStarted', (string) $id, 0);
+            }
         }
         if (array_sum($results) === 0) {
             return ['error' => true, 'message' => $this->Translate('No actions are selected')];
@@ -648,6 +659,13 @@ class WakeUpManager extends IPSModuleStrict
                 $this->RejectValue('SetAction');
             }
         }
+        $runTime = null;
+        if (isset($value['RunTime'])) {
+            $runTime = $this->NormalizeRunTime($value['RunTime']);
+            if ($runTime === null) {
+                $this->RejectValue('SetAction');
+            }
+        }
         // Nur Aktionen der gewählten zentralen Instanz dürfen ausgewählt werden.
         $actionInstance = $this->ReadPropertyInteger('ActionInstance');
         $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
@@ -655,7 +673,7 @@ class WakeUpManager extends IPSModuleStrict
             $this->RejectValue('SetAction');
         }
 
-        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset]);
+        $this->UpdateSelection($id, ['Active' => $active, 'Offset' => $offset, 'RunTime' => $runTime]);
     }
 
     // Ändert unter der Sperre nur die Zeile(n) der Aktion $id in den gespeicherten Rohdaten; alle anderen Zeilen,
@@ -705,17 +723,22 @@ class WakeUpManager extends IPSModuleStrict
         });
     }
 
-    // Setzt Active und Offset einer Auswahlzeile; ungültige gespeicherte Werte werden dabei durch gültige ersetzt.
+    // Setzt Active, Offset und gegebenenfalls RunTime einer Auswahlzeile; ungültige gespeicherte Werte werden dabei
+    // durch gültige ersetzt. RunTime wird nur geschrieben, wenn sie geändert wird oder bereits vorhanden ist.
     // Liefert, ob sich die Zeile geändert hat. Weitere Felder der Zeile bleiben erhalten.
     private function ApplySelectionChange(object $row, array $change): bool
     {
         $active = $change['Active'] ?? (is_bool($row->Active ?? null) ? $row->Active : false);
         $offset = $change['Offset'] ?? $this->NormalizeOffset($row->Offset ?? 0) ?? 0;
-        if (($row->Active ?? null) === $active && ($row->Offset ?? null) === $offset) {
+        $runTime = $change['RunTime'] ?? (property_exists($row, 'RunTime') ? ($this->NormalizeRunTime($row->RunTime) ?? 0) : null);
+        if (($row->Active ?? null) === $active && ($row->Offset ?? null) === $offset && ($runTime === null || ($row->RunTime ?? null) === $runTime)) {
             return false;
         }
         $row->Active = $active;
         $row->Offset = $offset;
+        if ($runTime !== null) {
+            $row->RunTime = $runTime;
+        }
         return true;
     }
 
@@ -726,6 +749,15 @@ class WakeUpManager extends IPSModuleStrict
             $offset = (int) $offset;
         }
         return is_int($offset) && abs($offset) <= self::MAX_OFFSET ? $offset : null;
+    }
+
+    // Abspielzeit in Minuten als int oder null, wenn ungültig.
+    private function NormalizeRunTime(mixed $runTime): ?int
+    {
+        if (is_float($runTime) && floor($runTime) === $runTime) {
+            $runTime = (int) $runTime;
+        }
+        return is_int($runTime) && $runTime >= 0 && $runTime <= self::MAX_RUN_TIME ? $runTime : null;
     }
 
     // Schreibt Einstellungen unter derselben Sperre wie die Weckroutine und berechnet danach den nächsten Zeitpunkt neu.
@@ -978,6 +1010,10 @@ class WakeUpManager extends IPSModuleStrict
                             $row['start'] = ['time' => $start->format('H:i'), 'days' => $interval->invert === 1 ? -$interval->days : $interval->days];
                         }
                     }
+                    // Abspielzeit nur, wenn die zentrale Aktion eine Ausschalt-Aktion hat
+                    if ($group === self::MEDIA_GROUP && $action['media']['stop'] !== null) {
+                        $row['runTime'] = $selection[$id]['RunTime'] ?? 0;
+                    }
                     $actions[] = $row;
                 }
                 if (count($actions) > 0) {
@@ -1000,7 +1036,8 @@ class WakeUpManager extends IPSModuleStrict
             'hint'         => $hint,
             'groups'       => $groups,
             'templates'    => $this->TemplateNames(),
-            'maxOffset'    => self::MAX_OFFSET
+            'maxOffset'    => self::MAX_OFFSET,
+            'maxRunTime'   => self::MAX_RUN_TIME
         ], JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
@@ -1022,6 +1059,9 @@ class WakeUpManager extends IPSModuleStrict
             ];
             if ($group === self::OFFSET_GROUP) {
                 $row['Offset'] = $selection[$id]['Offset'] ?? 0;
+            }
+            if ($group === self::MEDIA_GROUP) {
+                $row['RunTime'] = $selection[$id]['RunTime'] ?? 0;
             }
             $rows[] = $row;
         }
@@ -1052,18 +1092,42 @@ class WakeUpManager extends IPSModuleStrict
     // $pending: bereits als ausgeführt gespeicherte Aktionen, die noch auszuführen sind.
     private function Process(array $pending = []): void
     {
-        $due = [...$pending, ...$this->ProcessSchedule()];
+        ['actions' => $actions, 'stops' => $stops] = $this->ProcessSchedule();
+        $due = [...$pending, ...$actions];
         // Nach jeder Neuberechnung (Einstellung, Timer, Start, zentrale Aktionen) die Kachel aktualisieren.
         $this->UpdateTile();
 
-        // Aktionen außerhalb der Sperre starten (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind
-        // bereits als ausgeführt gespeichert, ein paralleler Aufruf startet sie deshalb nicht erneut.
+        // Aktionen außerhalb der Sperre ausführen (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind bereits
+        // als ausgeführt bzw. ausgeschaltet gespeichert, ein paralleler Aufruf führt sie deshalb nicht erneut aus.
+        foreach ($stops as $key) {
+            if (!$this->NotifyMedia('MediaStop', $key, $this->InstanceID)) {
+                $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+                $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+                $this->LogMessage(sprintf($this->Translate('Media player could not be switched off: %s'), $catalog[$key]['name'] ?? $key), KL_WARNING);
+            }
+        }
+
+        $stopAt = [];
         foreach ($due as $action) {
-            $this->RunAction($action['label'], $action['definition']);
+            $result = $this->RunAction($action['label'], $action['definition']);
+            $media = $action['definition']['media'] ?? null;
+            // Nur tatsächlich gestartete Mediaplayer (nicht wegen ihrer Bedingung übersprungen) werden ausgeschaltet.
+            if ($result !== 'started' || $media === null) {
+                continue;
+            }
+            $this->NotifyMedia('MediaStarted', $action['key'], $this->InstanceID);
+            if ($media['stop'] !== null && $action['runTime'] > 0) {
+                $stopAt[$action['key']] = time() + $action['runTime'] * 60;
+            }
+        }
+        if (count($stopAt) > 0 && $this->AddPendingStops($stopAt)) {
+            // Timer auf das geplante Ausschalten neu setzen
+            $this->Process();
         }
     }
 
-    // Plant den nächsten Zeitpunkt und liefert die fälligen Aktionen, die der Aufrufer ausführen muss.
+    // Plant den nächsten Zeitpunkt und liefert die fälligen Aktionen und auszuschaltenden Mediaplayer, die der Aufrufer
+    // ausführen muss.
     private function ProcessSchedule(): array
     {
         $semaphore = 'WUM_' . $this->InstanceID;
@@ -1072,31 +1136,94 @@ class WakeUpManager extends IPSModuleStrict
             $this->LogMessage($this->Translate('Wake-up routine could not be processed (semaphore busy)'), KL_WARNING);
             // Der Timer würde sonst erst nach seinem bisherigen, ggf. stundenlangen Intervall erneut auslösen.
             $this->SetTimerInterval(self::TIMER, 1000);
-            return [];
+            return ['actions' => [], 'stops' => []];
         }
 
         try {
             $now = time();
+            // Geplantes Ausschalten gilt unabhängig von Aktiv-Schalter und Einstellung (das Gerät läuft bereits).
+            $stops = $this->TakeDueStops($now);
 
             if (!$this->ReadAttributeBoolean('Active')) {
                 $this->ResetState();
-                $this->SetTimerInterval(self::TIMER, 0);
+                $this->ScheduleNext(null, $now);
                 $this->SetStatus(IS_INACTIVE);
-                return [];
+                return ['actions' => [], 'stops' => $stops];
             }
 
             $config = $this->LoadConfiguration();
             if ($config === null) {
-                $this->SetTimerInterval(self::TIMER, 0);
-                return [];
+                $this->ScheduleNext(null, $now);
+                return ['actions' => [], 'stops' => $stops];
             }
 
             $due = $this->TakeDueActions($config, $now);
             $this->ScheduleNext($config, $now);
-            return $due;
+            return ['actions' => $due, 'stops' => $stops];
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
+    }
+
+    // Geplantes Ausschalten je Aktions-ID. Nicht lesbare Daten werden verworfen (reine Verwaltungsdaten).
+    private function ReadPendingStops(): array
+    {
+        $pending = json_decode($this->ReadAttributeString('PendingStops'), true);
+        if (!is_array($pending)) {
+            $this->SendDebug('State', 'Planned switch-offs cannot be read, discarded', 0);
+            return [];
+        }
+        return array_filter($pending, 'is_int');
+    }
+
+    private function WritePendingStops(array $pending): void
+    {
+        $this->WriteAttributeString('PendingStops', json_encode((object) $pending));
+    }
+
+    // Entfernt die fälligen Einträge und liefert deren Aktions-IDs; nur unter der Sperre aufrufen.
+    private function TakeDueStops(int $now): array
+    {
+        $pending = $this->ReadPendingStops();
+        $due = array_keys(array_filter($pending, static fn (int $time): bool => $time <= $now));
+        if (count($due) > 0) {
+            foreach ($due as $key) {
+                $this->SendDebug('Execute', 'Switching off ' . $key . ' (planned for ' . $this->FormatTime($pending[$key]) . ')', 0);
+                unset($pending[$key]);
+            }
+            $this->WritePendingStops($pending);
+        }
+        return array_map('strval', $due);
+    }
+
+    private function AddPendingStops(array $stopAt): bool
+    {
+        $semaphore = 'WUM_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Process', 'Semaphore could not be entered', 0);
+            $this->LogMessage($this->Translate('Switch-off of a media player could not be scheduled (semaphore busy)'), KL_WARNING);
+            return false;
+        }
+        try {
+            $pending = $this->ReadPendingStops();
+            foreach ($stopAt as $key => $time) {
+                $this->SendDebug('Schedule', 'Switch-off of ' . $key . ' planned for ' . $this->FormatTime($time), 0);
+                $pending[$key] = $time;
+            }
+            $this->WritePendingStops($pending);
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+        return true;
+    }
+
+    // Meldet Start bzw. Ausschalten einer Mediaplayer-Aktion an die zentrale Instanz; diese schaltet nur für den
+    // jüngsten Start aus. $owner = 0: Start von Hand.
+    private function NotifyMedia(string $ident, string $key, int $owner): bool
+    {
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $payload = (string) json_encode(['ID' => $key, 'Owner' => $owner]);
+        return $actionInstance > 0 && $this->CallCatalog(static fn () => IPS_RequestAction($actionInstance, $ident, $payload)) === true;
     }
 
     // Meldet einen Fehler nur beim Wechsel in diesen Status im Meldungsfenster, nicht bei jeder Neuberechnung.
@@ -1156,9 +1283,10 @@ class WakeUpManager extends IPSModuleStrict
             $group = $catalog[$id]['group'] ?? null;
             $offset = ($group === null || $group === self::OFFSET_GROUP) ? $entry['Offset'] : 0;
             $actions[] = [
-                'key'    => (string) $id,
-                'label'  => $catalog[$id]['name'] ?? (string) $id,
-                'offset' => $offset * 60
+                'key'     => (string) $id,
+                'label'   => $catalog[$id]['name'] ?? (string) $id,
+                'offset'  => $offset * 60,
+                'runTime' => $entry['RunTime']
             ];
         }
 
@@ -1205,9 +1333,16 @@ class WakeUpManager extends IPSModuleStrict
                 $invalid++;
                 continue;
             }
+            $runTime = $this->NormalizeRunTime($row['RunTime'] ?? 0);
+            if ($runTime === null) {
+                $this->SendDebug('Configuration', 'Selection ' . ($index + 1) . ': invalid run time', 0);
+                $invalid++;
+                continue;
+            }
             $selection[$id] = [
-                'Active' => ($row['Active'] ?? false) === true,
-                'Offset' => $offset
+                'Active'  => ($row['Active'] ?? false) === true,
+                'Offset'  => $offset,
+                'RunTime' => $runTime
             ];
         }
         return $selection;
@@ -1388,8 +1523,10 @@ class WakeUpManager extends IPSModuleStrict
         $actions = [];
         foreach ($due as $event) {
             $actions[] = [
+                'key'        => $event['action']['key'],
                 'label'      => $event['action']['label'],
-                'definition' => $config['catalog'][$event['action']['key']] ?? null
+                'definition' => $config['catalog'][$event['action']['key']] ?? null,
+                'runTime'    => $event['action']['runTime']
             ];
         }
         return $actions;
@@ -1468,9 +1605,13 @@ class WakeUpManager extends IPSModuleStrict
         return $condition;
     }
 
-    private function ScheduleNext(array $config, int $now): void
+    // $config = null: ungültige Einstellung oder Wecker aus; dann nur das geplante Ausschalten.
+    private function ScheduleNext(?array $config, int $now): void
     {
-        ['next' => $next, 'wakeUp' => $nextWakeUp] = $this->GetNextPoints($config, $now);
+        ['next' => $next, 'wakeUp' => $nextWakeUp] = $config === null ? ['next' => null, 'wakeUp' => null] : $this->GetNextPoints($config, $now);
+        foreach ($this->ReadPendingStops() as $time) {
+            $next = $next === null ? $time : min($next, $time);
+        }
 
         if ($next === null) {
             $this->SendDebug('Schedule', 'No next point in time found', 0);
