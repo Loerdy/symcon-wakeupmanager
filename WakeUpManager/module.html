@@ -383,20 +383,19 @@
     .actions-header[hidden] {
         display: none;
     }
-    .choices.small {
-        gap: 0;
-    }
-    .choices.small button {
-        min-width: 0;
-        padding: 3px 10px;
+    button.filter {
+        font: inherit;
         font-size: 0.85em;
+        color: inherit;
+        padding: 4px 14px;
+        border: 1px solid var(--line-color);
+        border-radius: 999px;
+        background: transparent;
+        cursor: pointer;
     }
-    .choices.small button:first-child {
-        border-radius: 6px 0 0 6px;
-    }
-    .choices.small button:last-child {
-        border-radius: 0 6px 6px 0;
-        margin-left: -1px;
+    button.filter:hover, button.filter:focus-visible {
+        border-color: var(--accent-color, currentColor);
+        outline: none;
     }
     .offset {
         display: flex;
@@ -469,6 +468,20 @@
         border-radius: 6px;
         background: transparent;
         cursor: pointer;
+    }
+    /* Gleiche Höhe für Schaltflächen, Textfeld und Auswahlliste, die nebeneinander stehen (Vorlagen). Schaltflächen
+       nur als Mindesthöhe, damit eine umbrechende Beschriftung nicht abgeschnitten wird. */
+    button.action {
+        box-sizing: border-box;
+        min-height: 2.25em;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    input[type="text"], select {
+        box-sizing: border-box;
+        height: 2.25em;
+        padding-top: 0;
+        padding-bottom: 0;
     }
     button.action:hover, button.action:focus-visible {
         border-color: var(--accent-color, currentColor);
@@ -592,10 +605,7 @@
     </div>
     <div class="section muted" id="hint"></div>
     <div class="actions-header" id="actionsHeader" hidden>
-        <div class="choices small" id="filter">
-            <button type="button" data-filter="all">All</button>
-            <button type="button" data-filter="selected">Selected</button>
-        </div>
+        <button type="button" class="filter" id="filter"></button>
     </div>
     <div id="groups"></div>
     <div class="section run-actions" id="runBlock" hidden>
@@ -1004,10 +1014,8 @@
 
     function renderFilter() {
         document.getElementById('actionsHeader').hidden = state.groups.length === 0;
-        for (const button of document.getElementById('filter').children) {
-            button.classList.toggle('on', (button.dataset.filter === 'selected') === selectedOnly);
-            button.setAttribute('aria-pressed', String(button.classList.contains('on')));
-        }
+        // Beschriftung nennt, was ein Klick bewirkt
+        document.getElementById('filter').textContent = translate(selectedOnly ? 'Show all' : 'Show active only');
     }
 
     function renderGroups(container) {
@@ -1195,21 +1203,16 @@
         }
     });
 
-    for (const button of document.getElementById('filter').children) {
-        button.addEventListener('click', function () {
-            if (state === null) {
-                return;
-            }
-            flushOffset();
-            const value = button.dataset.filter === 'selected';
-            if (value !== state.selectedOnly) {
-                // Sofort umschalten; die Antwort des Moduls bestätigt den Wert.
-                state.selectedOnly = value;
-                send('SetSelectedOnly', value);
-            }
-            render();
-        });
-    }
+    document.getElementById('filter').addEventListener('click', function () {
+        if (state === null) {
+            return;
+        }
+        flushOffset();
+        // Sofort umschalten; die Antwort des Moduls bestätigt den Wert.
+        state.selectedOnly = !selectedOnly;
+        send('SetSelectedOnly', state.selectedOnly);
+        render();
+    });
 
     document.getElementById('runButton').addEventListener('click', function () {
         noticeTarget = 'runNotice';

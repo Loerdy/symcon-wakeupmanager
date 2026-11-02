@@ -109,8 +109,8 @@
             "Template \"%s\" saved": "Vorlage „%s“ gespeichert",
             "Template \"%s\" loaded": "Vorlage „%s“ geladen",
             "Template \"%s\" deleted": "Vorlage „%s“ gelöscht",
-            "All": "Alle",
-            "Selected": "Ausgewählte",
+            "Show active only": "Nur aktive anzeigen",
+            "Show all": "Alle anzeigen",
             "Earlier": "Früher",
             "Later": "Später"
         }
