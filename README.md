@@ -8,7 +8,7 @@ Die Module steuern keine Geräte direkt und haben keine Abhängigkeiten zu ander
 
 | Modul | Beschreibung |
 | --- | --- |
-| [WakeUpActions](WakeUpActions/README.md) | Zentrale Liste der verfügbaren Aktionen in festen Gruppen (Lampen, Rollläden, Heizung, Sonstiges, Skripte), einmal pro System. |
+| [WakeUpActions](WakeUpActions/README.md) | Zentrale Liste der verfügbaren Aktionen in festen Gruppen (Lampen, Rollläden, Heizung, Mediaplayer, Sonstiges, Skripte), einmal pro System. |
 | [WakeUpManager](WakeUpManager/README.md) | Ein Wecker pro Instanz mit Weckzeit, Wochentagen, optional eigener Weckzeit am Wochenende und Auswahl aus den zentralen Aktionen; Kachel mit nächster Weckzeit und Einstellungen. |
 
 ## Voraussetzungen

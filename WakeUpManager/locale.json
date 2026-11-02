@@ -17,6 +17,7 @@
             "Lights": "Lampen",
             "Shutters": "Rollläden",
             "Heating (offset in minutes: negative = before the wake-up time, positive = after)": "Heizung (Zeitversatz in Minuten: negativ = vor der Weckzeit, positiv = danach)",
+            "Media players": "Mediaplayer",
             "Other": "Sonstiges",
             "Scripts": "Skripte",
             "Action": "Aktion",

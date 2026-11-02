@@ -6,6 +6,14 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- **WakeUpActions:** Neue Gruppe **Mediaplayer** mit Startaktion, optionaler Lautstärke-Variable, Start- und Ziellautstärke, Fading-Dauer und optionaler Ausschalt-Aktion. Die Wecker zeigen die Gruppe an und führen bisher die Startaktion zur Weckzeit aus; Lautstärke, Fading und Ausschalten folgen. Mediaplayer, die bisher unter „Sonstiges“ stehen, müssen dort neu angelegt und in den Weckern neu ausgewählt werden.
+
+### Geändert
+
+- Kachel: Die Gruppe „Sonstiges“ zeigt ein Fragezeichen; die Noten gehören jetzt zur Gruppe „Mediaplayer“.
+
 ## [1.4.0] - 2026-11-02
 
 Beta.

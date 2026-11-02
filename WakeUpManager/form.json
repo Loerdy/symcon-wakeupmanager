@@ -287,6 +287,41 @@
         },
         {
             "type": "List",
+            "name": "ActionsMedia",
+            "caption": "Media players",
+            "rowCount": 4,
+            "add": false,
+            "delete": true,
+            "columns": [
+                {
+                    "caption": "Action",
+                    "name": "Name",
+                    "width": "auto"
+                },
+                {
+                    "caption": "Execute",
+                    "name": "Active",
+                    "width": "110px",
+                    "edit": {
+                        "type": "CheckBox"
+                    }
+                },
+                {
+                    "caption": "Condition",
+                    "name": "Condition",
+                    "width": "110px"
+                },
+                {
+                    "name": "ID",
+                    "visible": false
+                }
+            ],
+            "values": [],
+            "onEdit": "IPS_RequestAction($id, 'SetAction', json_encode($ActionsMedia));",
+            "onDelete": "IPS_RequestAction($id, 'DeleteAction', $ActionsMedia['ID']);"
+        },
+        {
+            "type": "List",
             "name": "ActionsOther",
             "caption": "Other",
             "rowCount": 4,

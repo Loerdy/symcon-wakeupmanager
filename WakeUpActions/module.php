@@ -10,6 +10,7 @@ class WakeUpActions extends IPSModuleStrict
         'light'   => 'ActionsLight',
         'shutter' => 'ActionsShutter',
         'heating' => 'ActionsHeating',
+        'media'   => 'ActionsMedia',
         'other'   => 'ActionsOther',
         'script'  => 'ActionsScript'
     ];

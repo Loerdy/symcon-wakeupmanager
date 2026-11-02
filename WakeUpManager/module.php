@@ -32,15 +32,21 @@ class WakeUpManager extends IPSModuleStrict
     private const WEEKEND = [6, 7];
 
     // Eigenschaft je Gruppe in WakeUpActions und gleichnamige Liste im Formular hier; die Gruppenschlüssel
-    // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz.
+    // werden nicht übersetzt. Nur Aktionen der Gruppe "heating" haben einen Zeitversatz, nur Aktionen der Gruppe
+    // "media" Lautstärke, Fading und Ausschalt-Aktion.
     private const GROUP_PROPERTIES = [
         'light'   => 'ActionsLight',
         'shutter' => 'ActionsShutter',
         'heating' => 'ActionsHeating',
+        'media'   => 'ActionsMedia',
         'other'   => 'ActionsOther',
         'script'  => 'ActionsScript'
     ];
     private const OFFSET_GROUP = 'heating';
+    private const MEDIA_GROUP = 'media';
+    // Grenzen der Fading-Dauer in Minuten wie im Formular von WakeUpActions
+    private const MIN_FADE_DURATION = 1;
+    private const MAX_FADE_DURATION = 120;
 
     // Frühere gemeinsame Auswahlliste (vor den Gruppen); wird per Migrate übernommen.
     private const LEGACY_PROPERTY = 'Actions';
@@ -1242,24 +1248,59 @@ class WakeUpManager extends IPSModuleStrict
             }
             $name = is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $label;
 
-            // Der Wert von SelectAction ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
-            $action = $row['Action'] ?? null;
-            if (is_string($action)) {
-                $action = json_decode($action, true);
-            }
-            $valid = is_array($action) && is_string($action['actionID'] ?? null) && $action['actionID'] !== '' && is_array($action['parameters'] ?? []);
-            if (!$valid) {
+            $action = $this->NormalizeAction($row['Action'] ?? null);
+            if ($action === null) {
                 $this->SendDebug('Catalog', $name . ': no valid action selected', 0);
             }
             $catalog[$id] = [
                 'name'       => $name,
                 'group'      => $group,
-                'actionID'   => $valid ? $action['actionID'] : null,
-                'parameters' => $valid ? ($action['parameters'] ?? []) : [],
+                'actionID'   => $action['actionID'] ?? null,
+                'parameters' => $action['parameters'] ?? [],
                 'condition'  => $this->NormalizeCondition($row['Condition'] ?? null)
             ];
+            if ($group === self::MEDIA_GROUP) {
+                $catalog[$id]['media'] = $this->NormalizeMedia($name, $row);
+            }
         }
         return $catalog;
+    }
+
+    // Der Wert von SelectAction ist JSON-kodiert; je nach Speicherung kann er bereits als Array vorliegen.
+    // Liefert actionID und parameters oder null, wenn keine gültige Aktion ausgewählt ist.
+    private function NormalizeAction(mixed $value): ?array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+        if (!is_array($value) || !is_string($value['actionID'] ?? null) || $value['actionID'] === '' || !is_array($value['parameters'] ?? [])) {
+            return null;
+        }
+        return ['actionID' => $value['actionID'], 'parameters' => $value['parameters'] ?? []];
+    }
+
+    // Zusatzwerte einer Mediaplayer-Aktion. Ungültige Werte werden nicht verwendet (Lautstärke bzw. Ausschalten
+    // entfallen), die zentralen Daten bleiben unverändert. volume = null: keine bzw. keine gültige Lautstärke-Variable.
+    private function NormalizeMedia(string $name, array $row): array
+    {
+        $volume = null;
+        $variable = $row['VolumeVariable'] ?? 0;
+        if (is_int($variable) && $variable > 0) {
+            $start = $row['StartVolume'] ?? null;
+            $target = $row['TargetVolume'] ?? null;
+            $duration = $row['FadeDuration'] ?? null;
+            $numeric = static fn (mixed $value): bool => (is_int($value) || is_float($value)) && is_finite((float) $value);
+            if ($numeric($start) && $numeric($target) && is_int($duration) && $duration >= self::MIN_FADE_DURATION && $duration <= self::MAX_FADE_DURATION) {
+                $volume = ['variable' => $variable, 'start' => (float) $start, 'target' => (float) $target, 'duration' => $duration];
+            } else {
+                $this->SendDebug('Catalog', $name . ': invalid volume settings, volume not used', 0);
+            }
+        } elseif ($variable !== 0) {
+            $this->SendDebug('Catalog', $name . ': invalid volume variable, volume not used', 0);
+        }
+
+        $stop = $this->NormalizeAction($row['StopAction'] ?? null);
+        return ['volume' => $volume, 'stop' => $stop];
     }
 
     // Zugriff auf die zentrale Instanz. Während diese neu geladen wird (z. B. Modul-Update), melden die
