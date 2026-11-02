@@ -220,6 +220,13 @@
             display: block;
         }
     }
+    /* Handy quer: maximiert zu flach für die Schwelle oben, Klasse setzt das Skript (siehe updateView) */
+    html.phone-landscape .compact {
+        display: none;
+    }
+    html.phone-landscape .settings {
+        display: block;
+    }
     .section {
         margin-bottom: 16px;
     }
@@ -333,9 +340,17 @@
         padding: 6px 0;
         border-bottom: 1px solid var(--soft-line-color);
     }
+    /* Reicht die Breite nicht für Name und Zeitversatz (z. B. Handy hochkant), rückt der Zeitversatz in eine
+       eigene Zeile darunter, statt den Namen auf wenige Zeichen zu kürzen. */
+    .row {
+        flex-wrap: wrap;
+    }
     .row label {
-        flex: 1;
+        flex: 1 1 14em;
         min-width: 0;
+    }
+    .row .offset {
+        margin-left: auto;
     }
     .row .name {
         overflow: hidden;
@@ -1256,6 +1271,19 @@
             }
         });
     }
+
+    // Das Handy im Querformat bietet maximiert nur ca. 290 px Höhe; die Größenschwelle im CSS zeigt dann die kompakte
+    // Ansicht. Ein maximiertes Fenster ist dort aber fast so breit wie der Bildschirm, eine Rasterkachel nicht. Ob die
+    // Kachel maximiert ist, meldet das HTML-SDK nicht, deshalb der Vergleich mit der Bildschirmgröße (Handy: kürzere
+    // Seite unter 500 px). screen.width/height drehen sich unter iOS nicht mit, deshalb kürzere bzw. längere Seite.
+    function updateView() {
+        const shorter = Math.min(window.screen.width, window.screen.height);
+        const longer = Math.max(window.screen.width, window.screen.height);
+        const phoneLandscape = shorter > 0 && shorter < 500 && window.innerWidth >= longer * 0.75 && window.innerHeight >= 200;
+        document.documentElement.classList.toggle('phone-landscape', phoneLandscape);
+    }
+    updateView();
+    window.addEventListener('resize', updateView);
 
     // Nach Ende einer Eingabe die zwischenzeitlich eingetroffenen Aktualisierungen anzeigen.
     document.addEventListener('focusout', function () {

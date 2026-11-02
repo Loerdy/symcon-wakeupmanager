@@ -10,7 +10,8 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 - Kachel (große Ansicht): Die Aktionsgruppen zeigen ein passendes Icon (Lampe, Rollladen, Thermometer, Noten, Stift).
 - Kachel: Neuer Umschalter **Alle | Ausgewählte** rechts über den Aktionen, um nur die ausgewählten Aktionen anzuzeigen. Die Wahl wird je Wecker gespeichert und gilt auf allen Geräten, auch per `IPS_RequestAction` (`SetSelectedOnly`).
-- Kachel: Der Zeitversatz der Heizung wird über einen Stepper (− Wert min +) eingestellt; die Schaltflächen ändern in 5-Minuten-Schritten, genaue Werte lassen sich weiterhin eintippen.
+- Kachel: Der Zeitversatz der Heizung wird über einen Stepper (− Wert min +) eingestellt; die Schaltflächen ändern in 5-Minuten-Schritten, genaue Werte lassen sich weiterhin eintippen. Ist die Ansicht zu schmal (z. B. Handy hochkant), steht der Zeitversatz in einer eigenen Zeile unter dem Namen, statt den Namen abzuschneiden.
+- Kachel: Auf dem Handy im Querformat zeigt die maximierte Kachel jetzt die Einstellungen statt nur der Weckzeit.
 
 ## [1.3.1] - 2026-11-01
 
