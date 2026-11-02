@@ -220,6 +220,13 @@
             display: block;
         }
     }
+    /* Handy quer: maximiert zu flach für die Schwelle oben, Klasse setzt das Skript (siehe updateView) */
+    html.phone-landscape .compact {
+        display: none;
+    }
+    html.phone-landscape .settings {
+        display: block;
+    }
     .section {
         margin-bottom: 16px;
     }
@@ -333,9 +340,17 @@
         padding: 6px 0;
         border-bottom: 1px solid var(--soft-line-color);
     }
+    /* Reicht die Breite nicht für Name und Zeitversatz (z. B. Handy hochkant), rückt der Zeitversatz in eine
+       eigene Zeile darunter, statt den Namen auf wenige Zeichen zu kürzen. */
+    .row {
+        flex-wrap: wrap;
+    }
     .row label {
-        flex: 1;
+        flex: 1 1 14em;
         min-width: 0;
+    }
+    .row .offset {
+        margin-left: auto;
     }
     .row .name {
         overflow: hidden;
@@ -348,11 +363,73 @@
         opacity: 0.7;
         white-space: nowrap;
     }
+    .group-caption {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .group-caption .group-icon {
+        width: 1.25em;
+        text-align: center;
+        font-size: 1.15em;
+        color: var(--accent-color, currentColor);
+    }
+    /* Filter rechts über den Aktionen */
+    .actions-header {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 4px;
+    }
+    .actions-header[hidden] {
+        display: none;
+    }
     .offset {
         display: flex;
         align-items: center;
         gap: 4px;
         white-space: nowrap;
+    }
+    /* Zeitversatz als Stepper: − Wert min + */
+    .stepper {
+        display: inline-flex;
+        align-items: center;
+        border: 1px solid var(--line-color);
+        border-radius: 999px;
+        padding: 2px;
+    }
+    .stepper:focus-within {
+        border-color: var(--accent-color, currentColor);
+    }
+    .stepper button {
+        font: inherit;
+        font-size: 1.15em;
+        line-height: 1;
+        color: inherit;
+        width: 1.8em;
+        height: 1.8em;
+        padding: 0;
+        border: none;
+        border-radius: 50%;
+        background: transparent;
+        cursor: pointer;
+    }
+    .stepper button:hover:not(:disabled), .stepper button:focus-visible {
+        background: color-mix(in srgb, var(--accent-color, currentColor) 20%, transparent);
+        outline: none;
+    }
+    .stepper button:disabled {
+        opacity: 0.3;
+        cursor: default;
+    }
+    .stepper input[type="number"] {
+        width: 3em;
+        padding: 2px 0;
+        border: none;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+    }
+    .stepper .unit {
+        margin: 0 4px 0 4px;
     }
     .start {
         min-width: 4em;
@@ -377,6 +454,20 @@
         border-radius: 6px;
         background: transparent;
         cursor: pointer;
+    }
+    /* Gleiche Höhe für Schaltflächen, Textfeld und Auswahlliste, die nebeneinander stehen (Vorlagen). Schaltflächen
+       nur als Mindesthöhe, damit eine umbrechende Beschriftung nicht abgeschnitten wird. */
+    button.action {
+        box-sizing: border-box;
+        min-height: 2.25em;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+    input[type="text"], select {
+        box-sizing: border-box;
+        height: 2.25em;
+        padding-top: 0;
+        padding-bottom: 0;
     }
     button.action:hover, button.action:focus-visible {
         border-color: var(--accent-color, currentColor);
@@ -403,15 +494,14 @@
         width: 0;
         min-width: 0;
     }
-    /* Ab ausreichender Breite stehen die Vorlagen als schmale Spalte rechts neben den Einstellungen, abgesetzt
-       durch eine feine Linie. Die linke Spalte richtet sich nach der Kachelbreite, nicht nach ihrem Inhalt, damit
-       die Vorlagen nicht springen, wenn sich z. B. die Zahl der Wochentage je Zeile ändert. Ab 840 px passen die
-       sieben Wochentage links in eine Zeile; die Begrenzung auf 900 px hält breite Ansichten kompakt. */
+    /* Ab ausreichender Breite stehen die Vorlagen als Spalte rechts neben den Einstellungen, abgesetzt durch eine
+       feine Linie. Die linke Spalte hat eine feste Breite für Weckzeit und sieben Wochentage in einer Zeile (ca. 31em),
+       nicht die ihres Inhalts, damit die Vorlagen nicht springen, wenn Sa/So in den Wochenendblock wechseln. Die
+       Vorlagen schließen direkt daran an und nutzen bis zu 400 px, damit Namensfeld und Schaltflächen Platz haben. */
     @media (min-width: 840px) {
         .settings-top {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-            max-width: 900px;
+            grid-template-columns: minmax(min-content, 32em) minmax(240px, 400px);
             gap: 0 32px;
             align-items: start;
         }
@@ -499,6 +589,9 @@
     </div>
     </div>
     <div class="section muted" id="hint"></div>
+    <div class="actions-header" id="actionsHeader" hidden>
+        <button type="button" class="action" id="filter"></button>
+    </div>
     <div id="groups"></div>
     <div class="section run-actions" id="runBlock" hidden>
         <button type="button" class="action" id="runButton">Execute selected actions now</button>
@@ -511,6 +604,9 @@
     const WEEKDAYS = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
     const WEEKDAY_NAMES = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' };
     const GROUPS = { light: 'Lights', shutter: 'Shutters', heating: 'Heating', other: 'Other', script: 'Scripts' };
+    const GROUP_ICONS = { light: 'lightbulb', shutter: 'blinds', heating: 'temperature-half', other: 'music', script: 'pen' };
+    // Schrittweite der Stepper-Schaltflächen für den Zeitversatz; per Tastatur ist jeder Minutenwert möglich.
+    const OFFSET_STEP = 5;
     const STATUS = {
         201: 'The wake-up time is invalid',
         202: 'No weekday is enabled',
@@ -627,6 +723,7 @@
             return;
         }
         deferred = false;
+        selectedOnly = state.selectedOnly === true;
 
         const compactTime = document.getElementById('compactTime');
         const compactDay = document.getElementById('compactDay');
@@ -672,7 +769,7 @@
         renderDays();
 
         const groups = document.getElementById('groups');
-        if (isEditing(groups)) {
+        if (isEditing(groups) || pendingOffset !== null) {
             deferred = true;
         } else {
             renderGroups(groups);
@@ -680,6 +777,7 @@
         document.getElementById('hint').textContent = state.hint ? translate(HINTS[state.hint])
             : (state.groups.length === 0 ? translate('No central actions available.') : '');
         document.getElementById('runBlock').hidden = state.groups.length === 0;
+        renderFilter();
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
@@ -896,20 +994,94 @@
         }
     }
 
+    // Filter "nur ausgewählte Aktionen": reine Anzeige, je Wecker im Modul gespeichert.
+    let selectedOnly = false;
+
+    function renderFilter() {
+        document.getElementById('actionsHeader').hidden = state.groups.length === 0;
+        // Beschriftung nennt, was ein Klick bewirkt
+        document.getElementById('filter').textContent = translate(selectedOnly ? 'Show all' : 'Show active only');
+    }
+
     function renderGroups(container) {
         container.replaceChildren();
         for (const group of state.groups) {
+            const actions = selectedOnly ? group.actions.filter(action => action.active) : group.actions;
+            if (actions.length === 0) {
+                continue;
+            }
             const section = document.createElement('div');
             section.className = 'section';
             const caption = document.createElement('div');
-            caption.className = 'caption';
-            caption.textContent = translate(GROUPS[group.key] || group.key);
+            caption.className = 'caption group-caption';
+            if (GROUP_ICONS[group.key]) {
+                // Container um das Icon, da icons.js das <i> durch ein SVG ersetzt.
+                const icon = document.createElement('span');
+                icon.className = 'group-icon';
+                const i = document.createElement('i');
+                i.className = 'fa-light fa-' + GROUP_ICONS[group.key];
+                icon.appendChild(i);
+                caption.appendChild(icon);
+            }
+            const text = document.createElement('span');
+            text.textContent = translate(GROUPS[group.key] || group.key);
+            caption.appendChild(text);
             section.appendChild(caption);
-            for (const action of group.actions) {
+            for (const action of actions) {
                 section.appendChild(renderAction(action));
             }
             container.appendChild(section);
         }
+        if (selectedOnly && container.children.length === 0 && state.groups.length > 0) {
+            const empty = document.createElement('div');
+            empty.className = 'section muted';
+            empty.textContent = translate('No actions are selected');
+            container.appendChild(empty);
+        }
+    }
+
+    // Über die Stepper-Schaltflächen geänderter Zeitversatz: wird erst nach einer kurzen Pause gespeichert, damit
+    // mehrere Klicks nur eine Änderung auslösen. Bis dahin werden die Aktionen nicht neu gezeichnet.
+    let pendingOffset = null;
+
+    function flushOffset() {
+        if (pendingOffset === null) {
+            return;
+        }
+        clearTimeout(pendingOffset.timer);
+        const id = pendingOffset.id;
+        const value = pendingOffset.value;
+        pendingOffset = null;
+        saveOffset(id, value);
+    }
+
+    function saveOffset(id, value) {
+        const action = state.groups.flatMap(group => group.actions).find(item => item.id === id);
+        if (action && action.offset !== value) {
+            // Sofort übernehmen, damit ein Neuzeichnen vor der Antwort des Moduls nicht den alten Wert zeigt.
+            action.offset = value;
+            send('SetAction', { ID: id, Offset: value });
+        }
+        if (deferred) {
+            render();
+        }
+    }
+
+    function stepOffset(action, input, direction) {
+        if (pendingOffset !== null && pendingOffset.id !== action.id) {
+            flushOffset();
+        }
+        const current = Number(input.value);
+        const base = input.value !== '' && Number.isInteger(current) ? current : action.offset;
+        // Auf das nächste Vielfache der Schrittweite in der gewählten Richtung
+        const next = direction > 0 ? Math.floor(base / OFFSET_STEP + 1) * OFFSET_STEP : Math.ceil(base / OFFSET_STEP - 1) * OFFSET_STEP;
+        const value = Math.max(-state.maxOffset, Math.min(state.maxOffset, next));
+        input.value = String(value);
+        input.dispatchEvent(new Event('input'));
+        if (pendingOffset !== null) {
+            clearTimeout(pendingOffset.timer);
+        }
+        pendingOffset = { id: action.id, value: value, timer: setTimeout(flushOffset, 700) };
     }
 
     function renderAction(action) {
@@ -939,24 +1111,55 @@
         if ('offset' in action) {
             const offset = document.createElement('div');
             offset.className = 'offset';
+            const stepper = document.createElement('div');
+            stepper.className = 'stepper';
+            stepper.title = translate('Offset in minutes: negative = before the wake-up time, positive = after');
+            const minus = document.createElement('button');
+            minus.type = 'button';
+            minus.textContent = '−';
+            minus.setAttribute('aria-label', translate('Earlier'));
+            const plus = document.createElement('button');
+            plus.type = 'button';
+            plus.textContent = '+';
+            plus.setAttribute('aria-label', translate('Later'));
             const input = document.createElement('input');
             input.type = 'number';
             input.step = '1';
             input.min = String(-state.maxOffset);
             input.max = String(state.maxOffset);
             input.value = String(action.offset);
-            input.title = translate('Offset in minutes: negative = before the wake-up time, positive = after');
+            input.setAttribute('aria-label', stepper.title);
+            const updateButtons = function () {
+                const value = Number(input.value);
+                minus.disabled = Number.isInteger(value) && value <= -state.maxOffset;
+                plus.disabled = Number.isInteger(value) && value >= state.maxOffset;
+            };
+            input.addEventListener('input', updateButtons);
             input.addEventListener('change', function () {
                 const value = Number(input.value);
                 if (input.value === '' || !Number.isInteger(value) || Math.abs(value) > state.maxOffset) {
                     input.value = String(action.offset);
+                    updateButtons();
                     return;
                 }
-                send('SetAction', { ID: action.id, Offset: value });
+                if (pendingOffset !== null && pendingOffset.id === action.id) {
+                    clearTimeout(pendingOffset.timer);
+                    pendingOffset = null;
+                }
+                saveOffset(action.id, value);
             });
+            minus.addEventListener('click', function () {
+                stepOffset(action, input, -1);
+            });
+            plus.addEventListener('click', function () {
+                stepOffset(action, input, 1);
+            });
+            updateButtons();
             const unit = document.createElement('span');
+            unit.className = 'unit';
             unit.textContent = translate('min');
-            offset.append(input, unit);
+            stepper.append(minus, input, unit, plus);
+            offset.appendChild(stepper);
             if (action.start) {
                 const start = document.createElement('span');
                 start.className = 'start';
@@ -983,6 +1186,17 @@
             event.preventDefault();
             toggleActive();
         }
+    });
+
+    document.getElementById('filter').addEventListener('click', function () {
+        if (state === null) {
+            return;
+        }
+        flushOffset();
+        // Sofort umschalten; die Antwort des Moduls bestätigt den Wert.
+        state.selectedOnly = !selectedOnly;
+        send('SetSelectedOnly', state.selectedOnly);
+        render();
     });
 
     document.getElementById('runButton').addEventListener('click', function () {
@@ -1045,6 +1259,19 @@
             }
         });
     }
+
+    // Das Handy im Querformat bietet maximiert nur ca. 290 px Höhe; die Größenschwelle im CSS zeigt dann die kompakte
+    // Ansicht. Ein maximiertes Fenster ist dort aber fast so breit wie der Bildschirm, eine Rasterkachel nicht. Ob die
+    // Kachel maximiert ist, meldet das HTML-SDK nicht, deshalb der Vergleich mit der Bildschirmgröße (Handy: kürzere
+    // Seite unter 500 px). screen.width/height drehen sich unter iOS nicht mit, deshalb kürzere bzw. längere Seite.
+    function updateView() {
+        const shorter = Math.min(window.screen.width, window.screen.height);
+        const longer = Math.max(window.screen.width, window.screen.height);
+        const phoneLandscape = shorter > 0 && shorter < 500 && window.innerWidth >= longer * 0.75 && window.innerHeight >= 200;
+        document.documentElement.classList.toggle('phone-landscape', phoneLandscape);
+    }
+    updateView();
+    window.addEventListener('resize', updateView);
 
     // Nach Ende einer Eingabe die zwischenzeitlich eingetroffenen Aktualisierungen anzeigen.
     document.addEventListener('focusout', function () {

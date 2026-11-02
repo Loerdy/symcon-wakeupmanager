@@ -108,7 +108,11 @@
             "The template cannot be read": "Die Vorlage ist nicht lesbar",
             "Template \"%s\" saved": "Vorlage „%s“ gespeichert",
             "Template \"%s\" loaded": "Vorlage „%s“ geladen",
-            "Template \"%s\" deleted": "Vorlage „%s“ gelöscht"
+            "Template \"%s\" deleted": "Vorlage „%s“ gelöscht",
+            "Show active only": "Nur aktive anzeigen",
+            "Show all": "Alle anzeigen",
+            "Earlier": "Früher",
+            "Later": "Später"
         }
     }
 }

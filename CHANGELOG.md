@@ -6,6 +6,22 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-02
+
+Beta.
+
+### Hinzugefügt
+
+- Kachel: Neue Schaltfläche **Nur aktive anzeigen** bzw. **Alle anzeigen** rechts über den Aktionen, um nur die ausgewählten Aktionen anzuzeigen. Die Wahl wird je Wecker gespeichert und gilt auf allen Geräten, auch per `IPS_RequestAction` (`SetSelectedOnly`).
+
+### Geändert
+
+- Kachel (große Ansicht): Die Aktionsgruppen zeigen ein passendes Icon (Lampe, Rollladen, Thermometer, Noten, Stift).
+- Kachel: Der Zeitversatz der Heizung wird über einen Stepper (− Wert min +) eingestellt; die Schaltflächen ändern in 5-Minuten-Schritten, genaue Werte lassen sich weiterhin eintippen. Ist die Ansicht zu schmal (z. B. Handy hochkant), steht der Zeitversatz in einer eigenen Zeile unter dem Namen, statt den Namen abzuschneiden.
+- Kachel: Auf dem Handy im Querformat zeigt die maximierte Kachel jetzt die Einstellungen statt nur der Weckzeit.
+- Kachel: Schaltflächen, Namensfeld und Auswahlliste der Vorlagen sind gleich hoch.
+- Kachel (breite Ansicht): Die Vorlagen-Spalte schließt direkt an die Einstellungen an und ist breiter, damit das Namensfeld vollständig lesbar ist und die Schaltflächen nebeneinander passen.
+
 ## [1.3.1] - 2026-11-01
 
 Beta.
@@ -84,7 +100,8 @@ Erstes Release (Beta).
 - Kachel (HTML-SDK): in normaler Größe die nächste Weckzeit mit Tag und wählbarem Icon, das den Wecker beim Antippen ein- bzw. ausschaltet; maximiert die Einstellungen inklusive berechneter Startzeit der Heizungsaktionen.
 - Wählbare Darstellung der Weckzeit in der Kachel: Standard, Digital (7-Segment-Anzeige) oder Klappzahlen mit Umklapp-Animation. Farben und Abstände folgen dem Design der Visualisierung.
 
-[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/Loerdy/symcon-wakeupmanager/compare/v1.1.0...v1.2.0
