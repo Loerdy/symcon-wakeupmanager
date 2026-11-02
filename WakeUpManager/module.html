@@ -386,7 +386,7 @@
     .offset {
         display: flex;
         align-items: center;
-        gap: 4px;
+        gap: 4px 8px;
         white-space: nowrap;
     }
     /* Zeitversatz als Stepper: − Wert min + */
@@ -513,6 +513,15 @@
     select option {
         color: var(--content-color, CanvasText);
         background: var(--card-color, Canvas);
+    }
+    button.action.toggle {
+        opacity: 0.6;
+    }
+    button.action.toggle.on {
+        border-color: var(--accent-color, currentColor);
+        background: color-mix(in srgb, var(--accent-color, currentColor) 25%, transparent);
+        font-weight: 600;
+        opacity: 1;
     }
     button.action:disabled {
         opacity: 0.5;
@@ -1181,11 +1190,26 @@
         }
         row.appendChild(label);
 
-        if ('runTime' in action) {
-            const runTime = document.createElement('div');
-            runTime.className = 'offset';
-            runTime.appendChild(renderStepper(action, 'runTime'));
-            row.appendChild(runTime);
+        if ('fade' in action || 'runTime' in action) {
+            const media = document.createElement('div');
+            media.className = 'offset';
+            if ('fade' in action) {
+                const fade = document.createElement('button');
+                fade.type = 'button';
+                fade.className = 'action toggle';
+                fade.classList.toggle('on', action.fade);
+                fade.setAttribute('aria-pressed', String(action.fade));
+                fade.textContent = translate('Fading');
+                fade.title = translate('Fading: volume rises from the start to the target volume');
+                fade.addEventListener('click', function () {
+                    send('SetAction', { ID: action.id, Fade: !action.fade });
+                });
+                media.appendChild(fade);
+            }
+            if ('runTime' in action) {
+                media.appendChild(renderStepper(action, 'runTime'));
+            }
+            row.appendChild(media);
         }
         if ('offset' in action) {
             const offset = document.createElement('div');

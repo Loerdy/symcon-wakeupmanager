@@ -215,7 +215,7 @@ class ScheduleTest extends WakeUpManagerTestCase
                 'L' => ['name' => 'Light', 'group' => 'light', 'actionID' => self::RECORD_ACTION, 'parameters' => ['name' => 'Light']],
                 'H' => ['name' => 'Heat', 'group' => 'heating', 'actionID' => self::RECORD_ACTION, 'parameters' => ['name' => 'Heat']]
             ],
-            'actions'  => array_map(static fn (array $action): array => $action + ['runTime' => 0], $actions)
+            'actions'  => array_map(static fn (array $action): array => $action + ['runTime' => 0, 'fade' => true], $actions)
         ];
     }
 

@@ -48,7 +48,7 @@ Aktionen der Gruppe **Mediaplayer** haben im Bearbeitungsfenster zusätzliche Fe
 
 Ohne gewählte Lautstärke-Variable lässt sich die Aktion speichern, die Lautstärke wird dann aber nicht gesetzt (Hinweis im Debug des Weckers). Felder unter einer nicht gewählten Option werden nicht geprüft und nicht verwendet; ihre Werte bleiben aber gespeichert, falls die Option später wieder gewählt wird.
 
-Die **Abspielzeit** bis zum Ausschalten wird in jedem Wecker eingestellt; dort ist auch beschrieben, wann ausgeschaltet wird ([Ausschalten von Mediaplayern](../WakeUpManager/README.md#ausschalten-von-mediaplayern)). Die Ausschalt-Aktion führt diese Instanz aus, und zwar nur für den Wecker, der die Aktion zuletzt gestartet hat. In dieser Entwicklungsversion setzen die Wecker noch keine Lautstärke; Startlautstärke und Fading folgen im nächsten Schritt.
+Die **Abspielzeit** bis zum Ausschalten wird in jedem Wecker eingestellt; dort ist auch beschrieben, wann ausgeschaltet wird ([Ausschalten von Mediaplayern](../WakeUpManager/README.md#ausschalten-von-mediaplayern)). Die Ausschalt-Aktion führt diese Instanz aus, und zwar nur für den Wecker, der die Aktion zuletzt gestartet hat. Ob mit Fading geweckt wird, wird ebenfalls in jedem Wecker eingestellt ([Fading](../WakeUpManager/README.md#fading)).
 
 Mediaplayer, die bisher unter „Sonstiges“ angelegt sind, werden unter „Mediaplayer“ neu angelegt (siehe unten); die Auswahl in den Weckern muss dann neu getroffen werden.
 
