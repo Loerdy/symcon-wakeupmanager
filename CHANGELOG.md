@@ -13,6 +13,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 - Kachel: Der Zeitversatz der Heizung wird über einen Stepper (− Wert min +) eingestellt; die Schaltflächen ändern in 5-Minuten-Schritten, genaue Werte lassen sich weiterhin eintippen. Ist die Ansicht zu schmal (z. B. Handy hochkant), steht der Zeitversatz in einer eigenen Zeile unter dem Namen, statt den Namen abzuschneiden.
 - Kachel: Auf dem Handy im Querformat zeigt die maximierte Kachel jetzt die Einstellungen statt nur der Weckzeit.
 - Kachel: Schaltflächen, Namensfeld und Auswahlliste der Vorlagen sind gleich hoch.
+- Kachel (breite Ansicht): Die Vorlagen-Spalte schließt direkt an die Einstellungen an und ist breiter, damit das Namensfeld vollständig lesbar ist und die Schaltflächen nebeneinander passen.
 
 ## [1.3.1] - 2026-11-01
 

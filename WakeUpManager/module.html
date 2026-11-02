@@ -494,15 +494,14 @@
         width: 0;
         min-width: 0;
     }
-    /* Ab ausreichender Breite stehen die Vorlagen als schmale Spalte rechts neben den Einstellungen, abgesetzt
-       durch eine feine Linie. Die linke Spalte richtet sich nach der Kachelbreite, nicht nach ihrem Inhalt, damit
-       die Vorlagen nicht springen, wenn sich z. B. die Zahl der Wochentage je Zeile ändert. Ab 840 px passen die
-       sieben Wochentage links in eine Zeile; die Begrenzung auf 900 px hält breite Ansichten kompakt. */
+    /* Ab ausreichender Breite stehen die Vorlagen als Spalte rechts neben den Einstellungen, abgesetzt durch eine
+       feine Linie. Die linke Spalte hat eine feste Breite für Weckzeit und sieben Wochentage in einer Zeile (ca. 31em),
+       nicht die ihres Inhalts, damit die Vorlagen nicht springen, wenn Sa/So in den Wochenendblock wechseln. Die
+       Vorlagen schließen direkt daran an und nutzen bis zu 400 px, damit Namensfeld und Schaltflächen Platz haben. */
     @media (min-width: 840px) {
         .settings-top {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
-            max-width: 900px;
+            grid-template-columns: minmax(min-content, 32em) minmax(240px, 400px);
             gap: 0 32px;
             align-items: start;
         }
