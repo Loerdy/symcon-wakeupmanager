@@ -1,6 +1,7 @@
 {
     "translations": {
         "de": {
+            "Alarm Clock": "Wecker",
             "Settings of the alarm clock. Changes are saved immediately, also when made in the tile.": "Einstellungen des Weckers. Änderungen werden sofort gespeichert, auch wenn sie in der Kachel vorgenommen werden.",
             "Alarm clock active": "Wecker aktiv",
             "Wake-up time": "Weckzeit",
