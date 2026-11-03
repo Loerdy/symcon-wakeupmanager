@@ -13,6 +13,9 @@ class WakeUpManager extends IPSModuleStrict
     // Maximale Abspielzeit einer Mediaplayer-Aktion bis zum Ausschalten in Minuten; 0 = nicht ausschalten.
     private const MAX_RUN_TIME = 720;
 
+    // "+15 min" in der Kachel verschiebt ein geplantes Ausschalten um diese Zeit (Sekunden).
+    private const EXTEND_STOP = 900;
+
     // Fading: höchstens alle 15 Sekunden ein Schritt. Weicht die Lautstärke um mehr als die Toleranz vom zuletzt
     // gesetzten Wert ab, wurde sie von Hand (oder durch einen anderen Start) geändert und das Fading endet.
     private const FADE_MIN_INTERVAL = 15;
@@ -393,6 +396,16 @@ class WakeUpManager extends IPSModuleStrict
                 }
                 $this->UpdateSelection($Value, null);
                 break;
+            case 'ExtendStop':
+            case 'CancelStop':
+                if (!is_string($Value) || $Value === '') {
+                    $this->RejectValue($Ident);
+                }
+                $this->ChangeStop($Value, $Ident === 'ExtendStop');
+                break;
+            case 'EndWakeUp':
+                $this->EndWakeUp();
+                break;
             case 'RunActions':
                 ['error' => $error, 'message' => $message] = $this->RunSelectedActions();
                 $this->Respond(is_string($Value) ? $Value : 'script', $message, $error);
@@ -604,6 +617,7 @@ class WakeUpManager extends IPSModuleStrict
 
         // Reihenfolge wie in der Konsole: nach Gruppen und zentraler Liste
         $results = ['started' => 0, 'skipped' => 0, 'failed' => 0];
+        $media = [];
         foreach ($catalog as $id => $definition) {
             if (!($selection[$id]['Active'] ?? false)) {
                 continue;
@@ -616,7 +630,12 @@ class WakeUpManager extends IPSModuleStrict
             // Start von Hand ist der jüngste Start: ein geplantes Ausschalten eines Weckers entfällt dann.
             if ($result === 'started' && isset($definition['media'])) {
                 $this->NotifyMedia('MediaStarted', (string) $id, 0);
+                $media[] = (string) $id;
             }
+        }
+        // Eigenes geplantes Ausschalten und Fading dieser Mediaplayer entfallen (Anzeige "Laufender Weckvorgang").
+        if (count($media) > 0 && count($this->TakeMediaState($media) ?? []) > 0) {
+            $this->Process();
         }
         if (array_sum($results) === 0) {
             return ['error' => true, 'message' => $this->Translate('No actions are selected')];
@@ -1054,6 +1073,23 @@ class WakeUpManager extends IPSModuleStrict
             }
         }
 
+        // Laufender Weckvorgang: von diesem Wecker gestartete Mediaplayer mit geplantem Ausschalten oder Fading
+        $running = [];
+        $pending = $this->ReadPendingStops();
+        $fades = $this->ReadFades();
+        foreach (array_keys($pending + $fades) as $key) {
+            $key = (string) $key;
+            $entry = ['id' => $key, 'name' => $catalog[$key]['name'] ?? $key];
+            if (isset($pending[$key])) {
+                $entry['stop'] = $pending[$key];
+                $entry['stopTime'] = (new DateTimeImmutable('@' . $pending[$key]))->setTimezone($timezone)->format('H:i');
+            }
+            if (isset($fades[$key])) {
+                $entry['fadeTime'] = (new DateTimeImmutable('@' . ($fades[$key]['Begin'] + $fades[$key]['Duration'])))->setTimezone($timezone)->format('H:i');
+            }
+            $running[] = $entry;
+        }
+
         return (string) json_encode([
             'active'       => $active,
             'icon'         => $this->ReadPropertyString('Icon'),
@@ -1068,6 +1104,8 @@ class WakeUpManager extends IPSModuleStrict
             'hint'         => $hint,
             'groups'       => $groups,
             'templates'    => $this->TemplateNames(),
+            'running'      => $running,
+            'now'          => time(),
             'maxOffset'    => self::MAX_OFFSET,
             'maxRunTime'   => self::MAX_RUN_TIME
         ], JSON_INVALID_UTF8_SUBSTITUTE);
@@ -1133,13 +1171,7 @@ class WakeUpManager extends IPSModuleStrict
 
         // Aktionen außerhalb der Sperre ausführen (Sperre so kurz wie möglich, Kachel zuerst aktuell). Sie sind bereits
         // als ausgeführt bzw. ausgeschaltet gespeichert, ein paralleler Aufruf führt sie deshalb nicht erneut aus.
-        foreach ($stops as $key) {
-            if (!$this->NotifyMedia('MediaStop', $key, $this->InstanceID)) {
-                $actionInstance = $this->ReadPropertyInteger('ActionInstance');
-                $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
-                $this->LogMessage(sprintf($this->Translate('Media player could not be switched off: %s'), $catalog[$key]['name'] ?? $key), KL_WARNING);
-            }
-        }
+        $this->SwitchOff($stops);
 
         foreach ($steps as $step) {
             // Fehler nur im Debug; das Fading endet dann beim nächsten Schritt, weil die Lautstärke abweicht.
@@ -1414,6 +1446,110 @@ class WakeUpManager extends IPSModuleStrict
             IPS_SemaphoreLeave($semaphore);
         }
         return true;
+    }
+
+    // Fordert das Ausschalten der Mediaplayer bei der zentralen Instanz an (die nur für den jüngsten Start ausschaltet).
+    private function SwitchOff(array $keys): void
+    {
+        foreach ($keys as $key) {
+            if (!$this->NotifyMedia('MediaStop', $key, $this->InstanceID)) {
+                $this->LogMessage(sprintf($this->Translate('Media player could not be switched off: %s'), $this->MediaLabel($key)), KL_WARNING);
+            }
+        }
+    }
+
+    // Bezeichnung der zentralen Aktion für Meldungen, ersatzweise die ID
+    private function MediaLabel(string $key): string
+    {
+        $actionInstance = $this->ReadPropertyInteger('ActionInstance');
+        $catalog = $actionInstance > 0 ? $this->LoadCatalog($actionInstance) : null;
+        return $catalog[$key]['name'] ?? $key;
+    }
+
+    // Entfernt geplantes Ausschalten und Fading der angegebenen (null = aller) Mediaplayer und liefert deren Aktions-IDs;
+    // null, wenn die Sperre nicht frei ist.
+    private function TakeMediaState(?array $keys): ?array
+    {
+        $semaphore = 'WUM_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Process', 'Semaphore could not be entered', 0);
+            return null;
+        }
+        try {
+            $pending = $this->ReadPendingStops();
+            $fades = $this->ReadFades();
+            $taken = array_map('strval', array_keys($pending + $fades));
+            if ($keys !== null) {
+                $taken = array_values(array_intersect($taken, $keys));
+            }
+            if (count($taken) === 0) {
+                return [];
+            }
+            $remove = array_flip($taken);
+            if (count(array_intersect_key($pending, $remove)) > 0) {
+                $this->WritePendingStops(array_diff_key($pending, $remove));
+            }
+            if (count(array_intersect_key($fades, $remove)) > 0) {
+                $this->WriteFades(array_diff_key($fades, $remove));
+            }
+            return $taken;
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+    }
+
+    // Kachel: geplantes Ausschalten um 15 Minuten verschieben bzw. streichen. Ist es inzwischen erledigt, bleibt es dabei.
+    private function ChangeStop(string $key, bool $extend): void
+    {
+        $semaphore = 'WUM_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 5000)) {
+            $this->SendDebug('Process', 'Semaphore could not be entered', 0);
+            throw new Exception($this->Translate('The alarm clock is busy, please try again'));
+        }
+        $changed = false;
+        $time = null;
+        try {
+            $pending = $this->ReadPendingStops();
+            if (isset($pending[$key])) {
+                if ($extend) {
+                    $time = max($pending[$key], time()) + self::EXTEND_STOP;
+                    $pending[$key] = $time;
+                } else {
+                    unset($pending[$key]);
+                }
+                $this->WritePendingStops($pending);
+                $changed = true;
+            } else {
+                $this->SendDebug('Stop', $key . ': no switch-off planned', 0);
+            }
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+        if (!$changed) {
+            $this->UpdateTile();
+            return;
+        }
+        $this->LogMessage($time === null
+            ? sprintf($this->Translate('Switch-off of %s cancelled'), $this->MediaLabel($key))
+            : sprintf($this->Translate('Switch-off of %s postponed to %s'), $this->MediaLabel($key), $this->FormatTime($time)), KL_MESSAGE);
+        // Timer und Kachel neu berechnen
+        $this->Process();
+    }
+
+    // Kachel: alle von diesem Wecker gestarteten Mediaplayer mit geplantem Ausschalten oder Fading sofort ausschalten.
+    private function EndWakeUp(): void
+    {
+        $keys = $this->TakeMediaState(null);
+        if ($keys === null) {
+            throw new Exception($this->Translate('The alarm clock is busy, please try again'));
+        }
+        if (count($keys) === 0) {
+            $this->UpdateTile();
+            return;
+        }
+        $this->LogMessage($this->Translate('Wake-up routine ended by hand'), KL_MESSAGE);
+        $this->SwitchOff($keys);
+        $this->Process();
     }
 
     // Meldet Start bzw. Ausschalten einer Mediaplayer-Aktion an die zentrale Instanz; diese schaltet nur für den

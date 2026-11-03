@@ -84,7 +84,17 @@ class MediaStopTest extends WakeUpManagerTestCase
         $manager = $this->startedManager(30);
         $manager->RequestAction('RunActions', true);
         $this->assertSame(['Radio', 'Radio'], $this->runs());
-        // Der Start von Hand plant selbst kein Ausschalten
+        // Der Start von Hand plant selbst kein Ausschalten, das eigene geplante Ausschalten entfällt
+        $this->assertSame([], $this->pendingStops($manager));
+        $this->assertSame([], json_decode($this->call($manager, 'GetTileState'), true)['running']);
+    }
+
+    public function testManualStartInAnotherAlarmPreventsPlannedSwitchOff(): void
+    {
+        $manager = $this->startedManager(30);
+        $other = $this->startedManager(0);
+        $other->RequestAction('RunActions', true);
+        $this->runs();
         $this->assertCount(1, $this->pendingStops($manager));
 
         $this->makeDue($manager);
@@ -132,7 +142,7 @@ class MediaStopTest extends WakeUpManagerTestCase
     public function testSkippedSwitchOffIsLogged(): void
     {
         $manager = $this->startedManager(30);
-        $manager->RequestAction('RunActions', true);
+        $this->startedManager(0)->RequestAction('RunActions', true);
         $this->makeDue($manager);
 
         $owner = IPS_GetName($this->instanceID($manager)) . ' (#' . $this->instanceID($manager) . ')';
@@ -143,6 +153,83 @@ class MediaStopTest extends WakeUpManagerTestCase
     {
         $manager = $this->startedManager(0);
         $this->assertSame(['Media player started: Radio'], $this->logs($this->instanceID($manager)));
+    }
+
+    // Laufender Weckvorgang in der maximierten Kachel: Anzeige, "+15 min", "Nicht ausschalten", "Weckvorgang beenden"
+    public function testTileShowsRunningMediaPlayer(): void
+    {
+        $manager = $this->startedManager(30);
+        $stop = $this->pendingStops($manager)['M'];
+
+        $running = json_decode($this->call($manager, 'GetTileState'), true)['running'];
+        $this->assertSame([['id' => 'M', 'name' => 'Radio', 'stop' => $stop, 'stopTime' => date('H:i', $stop)]], $running);
+    }
+
+    public function testExtendStopPostponesBy15Minutes(): void
+    {
+        $manager = $this->startedManager(30);
+        $stop = $this->pendingStops($manager)['M'];
+
+        $manager->RequestAction('ExtendStop', 'M');
+        $manager->RequestAction('ExtendStop', 'M');
+
+        $this->assertSame(['M' => $stop + 1800], $this->pendingStops($manager));
+        $this->assertContains('Switch-off of Radio postponed to ' . date('d.m.Y H:i:s', $stop + 1800), $this->logs($this->instanceID($manager)));
+    }
+
+    public function testCancelStopKeepsPlayerRunning(): void
+    {
+        $manager = $this->startedManager(30);
+        $this->runs();
+
+        $manager->RequestAction('CancelStop', 'M');
+
+        $this->assertSame([], $this->pendingStops($manager));
+        $this->assertSame([], json_decode($this->call($manager, 'GetTileState'), true)['running']);
+        $this->assertContains('Switch-off of Radio cancelled', $this->logs($this->instanceID($manager)));
+        $this->assertSame([], $this->runs());
+    }
+
+    public function testChangeOfStopThatIsNoLongerPlannedIsIgnored(): void
+    {
+        $manager = $this->startedManager(0);
+        $manager->RequestAction('ExtendStop', 'M');
+        $manager->RequestAction('CancelStop', 'X');
+        $this->assertSame([], $this->pendingStops($manager));
+
+        try {
+            $manager->RequestAction('ExtendStop', '');
+            $this->fail('Empty ID accepted');
+        } catch (Exception $e) {
+            $this->assertSame('Invalid value', $e->getMessage());
+        }
+    }
+
+    public function testEndWakeUpSwitchesOffImmediately(): void
+    {
+        $manager = $this->startedManager(30);
+        $this->runs();
+
+        $manager->RequestAction('EndWakeUp', '');
+
+        $this->assertSame(['Stop'], $this->runs());
+        $this->assertSame([], $this->pendingStops($manager));
+        $this->assertSame([], json_decode($this->call($manager, 'GetTileState'), true)['running']);
+        $this->assertContains('Wake-up routine ended by hand', $this->logs($this->instanceID($manager)));
+
+        // Nichts mehr laufend: kein weiteres Ausschalten
+        $manager->RequestAction('EndWakeUp', '');
+        $this->assertSame([], $this->runs());
+    }
+
+    public function testEndWakeUpRespectsNewerStart(): void
+    {
+        $older = $this->startedManager(30);
+        $this->startedManager(60);
+        $this->runs();
+
+        $older->RequestAction('EndWakeUp', '');
+        $this->assertSame([], $this->runs());
     }
 
     public function testRunTimeChangeAppliesFromNextWakeUp(): void
