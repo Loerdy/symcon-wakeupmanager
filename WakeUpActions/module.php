@@ -138,6 +138,7 @@ class WakeUpActions extends IPSModuleStrict
             throw new Exception($this->Translate('Invalid value'));
         }
 
+        $skippedFor = null;
         $semaphore = 'WUA_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($semaphore, 5000)) {
             $this->SendDebug('Media', 'Semaphore could not be entered', 0);
@@ -159,26 +160,49 @@ class WakeUpActions extends IPSModuleStrict
             }
             if (isset($starts[$id]) && $starts[$id] !== $owner) {
                 $this->SendDebug('Media', $id . ': switch-off by ' . $owner . ' skipped, started later by ' . $starts[$id], 0);
-                return;
+                $skippedFor = $starts[$id];
             }
         } finally {
             IPS_SemaphoreLeave($semaphore);
         }
 
-        // Ausschalt-Aktion außerhalb der Sperre ausführen
-        $this->RunStopAction($id);
+        // Meldungen und Ausschalt-Aktion außerhalb der Sperre
+        if ($skippedFor !== null) {
+            $this->LogMessage(sprintf($this->Translate('Switch-off of %s by %s skipped, started later by %s'), $this->MediaName($id), $this->OwnerName($owner), $this->OwnerName($skippedFor)), KL_MESSAGE);
+            return;
+        }
+        $this->RunStopAction($id, $owner);
     }
 
-    private function RunStopAction(string $id): void
+    // Bezeichnung der Mediaplayer-Aktion für Meldungen, ersatzweise die ID
+    private function MediaName(string $id): string
     {
-        $rows = $this->DecodeList($this->ReadPropertyString(self::MEDIA_PROPERTY)) ?? [];
-        $row = null;
-        foreach ($rows as $candidate) {
+        $row = $this->FindMediaRow($id);
+        return is_string($row['Name'] ?? null) && $row['Name'] !== '' ? $row['Name'] : $id;
+    }
+
+    // Name des Weckers für Meldungen; 0 = Start von Hand
+    private function OwnerName(int $owner): string
+    {
+        if ($owner === 0) {
+            return $this->Translate('manual start');
+        }
+        return IPS_ObjectExists($owner) ? IPS_GetName($owner) . ' (#' . $owner . ')' : '#' . $owner;
+    }
+
+    private function FindMediaRow(string $id): ?array
+    {
+        foreach ($this->DecodeList($this->ReadPropertyString(self::MEDIA_PROPERTY)) ?? [] as $candidate) {
             if (is_array($candidate) && ($candidate['ID'] ?? null) === $id) {
-                $row = $candidate;
-                break;
+                return $candidate;
             }
         }
+        return null;
+    }
+
+    private function RunStopAction(string $id, int $owner): void
+    {
+        $row = $this->FindMediaRow($id);
         if ($row === null || ($row['SwitchOff'] ?? 1) === 0) {
             $this->SendDebug('Media', $id . ': no switch-off action', 0);
             return;
@@ -195,6 +219,7 @@ class WakeUpActions extends IPSModuleStrict
         try {
             if (IPS_RunAction($action['actionID'], $action['parameters'] ?? [])) {
                 $this->SendDebug('Media', $name . ': switch-off action executed', 0);
+                $this->LogMessage(sprintf($this->Translate('Media player switched off: %s (alarm clock %s)'), $name, $this->OwnerName($owner)), KL_MESSAGE);
                 return;
             }
             $this->SendDebug('Media', $name . ': switch-off action failed', 0);

@@ -29,6 +29,8 @@
             "Shorter": "Kürzer",
             "Longer": "Länger",
             "Media player could not be switched off: %s": "Mediaplayer konnte nicht ausgeschaltet werden: %s",
+            "Media player started: %s, switch-off planned for %s": "Mediaplayer gestartet: %s, Ausschalten geplant für %s",
+            "Media player started: %s": "Mediaplayer gestartet: %s",
             "Fading or switch-off of a media player could not be scheduled (semaphore busy)": "Fading oder Ausschalten eines Mediaplayers konnte nicht geplant werden (Semaphore belegt)",
             "Other": "Sonstiges",
             "Scripts": "Skripte",

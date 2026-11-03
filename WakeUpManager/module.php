@@ -1146,6 +1146,7 @@ class WakeUpManager extends IPSModuleStrict
             $this->SetVolume($step['variable'], $step['value'], $step['key']);
         }
 
+        $started = [];
         $stopAt = [];
         $fades = [];
         foreach ($due as $action) {
@@ -1160,6 +1161,7 @@ class WakeUpManager extends IPSModuleStrict
                 continue;
             }
             $this->NotifyMedia('MediaStarted', $action['key'], $this->InstanceID);
+            $started[$action['key']] = $action['label'];
             if ($media['stop'] !== null && $action['runTime'] > 0) {
                 // Abspielzeit ab dem Start, bei Fading vor der Weckzeit ab der Weckzeit
                 $stopAt[$action['key']] = ($action['fadeEarly'] ? $action['occurrence'] : time()) + $action['runTime'] * 60;
@@ -1174,6 +1176,12 @@ class WakeUpManager extends IPSModuleStrict
         if ((count($stopAt) > 0 || count($fades) > 0) && $this->AddMediaState($stopAt, $fades)) {
             // Timer auf Fading bzw. Ausschalten neu setzen
             $this->Process();
+        }
+        // Start und geplantes Ausschalten im Meldungsfenster, damit ein Weckvorgang ohne Debug-Fenster nachvollziehbar ist
+        foreach ($started as $key => $label) {
+            $this->LogMessage(isset($stopAt[$key])
+                ? sprintf($this->Translate('Media player started: %s, switch-off planned for %s'), $label, $this->FormatTime($stopAt[$key]))
+                : sprintf($this->Translate('Media player started: %s'), $label), KL_MESSAGE);
         }
     }
 

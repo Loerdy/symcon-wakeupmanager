@@ -31,7 +31,10 @@
             "The central action list contains entries without a unique ID": "Die zentrale Aktionsliste enthält Einträge ohne eindeutige ID",
             "Invalid value": "Ungültiger Wert",
             "The media player coordination is busy, please try again": "Die Abstimmung der Mediaplayer ist belegt, bitte erneut versuchen",
-            "Switch-off action failed: %s": "Ausschalt-Aktion fehlgeschlagen: %s"
+            "Switch-off action failed: %s": "Ausschalt-Aktion fehlgeschlagen: %s",
+            "Switch-off of %s by %s skipped, started later by %s": "Ausschalten von %s durch %s übersprungen, später gestartet durch %s",
+            "manual start": "Start von Hand",
+            "Media player switched off: %s (alarm clock %s)": "Mediaplayer ausgeschaltet: %s (Wecker %s)"
         }
     }
 }
