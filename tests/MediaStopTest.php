@@ -117,6 +117,34 @@ class MediaStopTest extends WakeUpManagerTestCase
         $this->assertSame(['Stop'], $this->runs());
     }
 
+    // Start, Ausschalten und übersprungenes Ausschalten stehen im Meldungsfenster (ohne Debug-Fenster nachvollziehbar)
+    public function testStartAndSwitchOffAreLogged(): void
+    {
+        $manager = $this->startedManager(30);
+        $planned = date('d.m.Y H:i:s', $this->pendingStops($manager)['M']);
+        $this->assertSame(['Media player started: Radio, switch-off planned for ' . $planned], $this->logs($this->instanceID($manager)));
+
+        $this->makeDue($manager);
+        $owner = IPS_GetName($this->instanceID($manager)) . ' (#' . $this->instanceID($manager) . ')';
+        $this->assertSame(['Media player switched off: Radio (alarm clock ' . $owner . ')'], $this->logs($this->catalog));
+    }
+
+    public function testSkippedSwitchOffIsLogged(): void
+    {
+        $manager = $this->startedManager(30);
+        $manager->RequestAction('RunActions', true);
+        $this->makeDue($manager);
+
+        $owner = IPS_GetName($this->instanceID($manager)) . ' (#' . $this->instanceID($manager) . ')';
+        $this->assertSame(['Switch-off of Radio by ' . $owner . ' skipped, started later by manual start'], $this->logs($this->catalog));
+    }
+
+    public function testStartWithoutSwitchOffIsLogged(): void
+    {
+        $manager = $this->startedManager(0);
+        $this->assertSame(['Media player started: Radio'], $this->logs($this->instanceID($manager)));
+    }
+
     public function testRunTimeChangeAppliesFromNextWakeUp(): void
     {
         $manager = $this->startedManager(30);
@@ -195,6 +223,18 @@ class MediaStopTest extends WakeUpManagerTestCase
     private function pendingStops(WakeUpManager $manager): array
     {
         return json_decode($this->call($manager, 'ReadAttributeString', 'PendingStops'), true);
+    }
+
+    private function instanceID(WakeUpManager $manager): int
+    {
+        return (new ReflectionProperty($manager, 'InstanceID'))->getValue($manager);
+    }
+
+    // Meldungen einer Instanz (Stufe KL_MESSAGE)
+    private function logs(int $id): array
+    {
+        $logs = array_filter(IPS\LogServer::getLogMessages((string) $id), static fn (array $log): bool => $log['Type'] === KL_MESSAGE);
+        return array_values(array_map(static fn (array $log): string => $log['Message'], $logs));
     }
 
     // Geplantes Ausschalten auf jetzt vorziehen und den Timer auslösen
