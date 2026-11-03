@@ -528,6 +528,37 @@
     .notice {
         opacity: 0.8;
     }
+    .running {
+        border: 1px solid var(--accent-color, currentColor);
+        border-radius: 8px;
+        padding: 8px 12px;
+    }
+    .running-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--soft-line-color);
+    }
+    .running-name {
+        flex: 1 1 auto;
+        min-width: 0;
+        font-weight: 600;
+    }
+    .running-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .running-info {
+        flex: 1 1 100%;
+        font-size: 0.9em;
+        opacity: 0.8;
+    }
+    #endWakeUp {
+        margin-top: 8px;
+    }
     .notice.error {
         opacity: 1;
         font-weight: 600;
@@ -551,6 +582,12 @@
             </label>
         </div>
         <div class="warning" id="warning"></div>
+    </div>
+    <!-- Nur sichtbar, solange ein von diesem Wecker gestarteter Mediaplayer ein geplantes Ausschalten oder Fading hat -->
+    <div class="section running" id="running" hidden>
+        <div class="caption">Running wake-up routine</div>
+        <div id="runningList"></div>
+        <button type="button" class="action" id="endWakeUp">End wake-up routine</button>
     </div>
     <!-- Breite Ansicht: Vorlagen rechts neben den Einstellungen, schmale Ansicht (Handy): darunter -->
     <div class="settings-top">
@@ -793,6 +830,7 @@
         }
 
         renderDays();
+        renderRunning();
 
         const groups = document.getElementById('groups');
         if (isEditing(groups) || pendingStep !== null) {
@@ -804,6 +842,69 @@
             : (state.groups.length === 0 ? translate('No central actions available.') : '');
         document.getElementById('runBlock').hidden = state.groups.length === 0;
         renderFilter();
+    }
+
+    // Abstand der Uhr des Browsers zur Uhr von IP-Symcon (Sekunden), für die Restzeit bis zum Ausschalten.
+    let clockOffset = 0;
+    let runningTimer = null;
+
+    function renderRunning() {
+        const running = Array.isArray(state.running) ? state.running : [];
+        clockOffset = state.now - Date.now() / 1000;
+        document.getElementById('running').hidden = running.length === 0;
+        document.getElementById('runningList').replaceChildren(...running.map(renderRunningEntry));
+        clearInterval(runningTimer);
+        runningTimer = running.some((entry) => entry.stop) ? setInterval(updateRemaining, 30000) : null;
+    }
+
+    function renderRunningEntry(entry) {
+        const row = document.createElement('div');
+        row.className = 'running-row';
+        const name = document.createElement('div');
+        name.className = 'running-name';
+        name.textContent = entry.name;
+        row.append(name);
+        if (entry.stop) {
+            const buttons = document.createElement('div');
+            buttons.className = 'running-buttons';
+            for (const [ident, text] of [['ExtendStop', translate('+15 min')], ['CancelStop', translate('Do not switch off')]]) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'action';
+                button.textContent = text;
+                button.addEventListener('click', function () {
+                    requestAction(ident, entry.id);
+                });
+                buttons.append(button);
+            }
+            row.append(buttons);
+        }
+        const info = document.createElement('div');
+        info.className = 'running-info';
+        info.dataset.stop = entry.stop || '';
+        info.dataset.stopTime = entry.stopTime || '';
+        info.dataset.fadeTime = entry.fadeTime || '';
+        row.append(info);
+        updateInfo(info);
+        return row;
+    }
+
+    function updateInfo(info) {
+        const parts = [];
+        if (info.dataset.stop !== '') {
+            const minutes = Math.max(0, Math.ceil((Number(info.dataset.stop) - Date.now() / 1000 - clockOffset) / 60));
+            parts.push(translate('Switch-off at') + ' ' + info.dataset.stopTime + ' (' + translate('in') + ' ' + minutes + ' min)');
+        } else {
+            parts.push(translate('No switch-off planned'));
+        }
+        if (info.dataset.fadeTime !== '') {
+            parts.push(translate('Fading until') + ' ' + info.dataset.fadeTime);
+        }
+        info.textContent = parts.join(' · ');
+    }
+
+    function updateRemaining() {
+        document.querySelectorAll('#runningList .running-info').forEach(updateInfo);
     }
 
     // Icon aus der Instanzkonfiguration (SelectIcon); nur einfache Icon-Namen als CSS-Klasse übernehmen.
@@ -1267,6 +1368,11 @@
     document.getElementById('runButton').addEventListener('click', function () {
         noticeTarget = 'runNotice';
         requestAction('RunActions', 'tile');
+    });
+
+    // Ohne Rückfrage: ein Tippen schaltet sofort aus
+    document.getElementById('endWakeUp').addEventListener('click', function () {
+        requestAction('EndWakeUp', '');
     });
 
     document.getElementById('templateLoad').addEventListener('click', function () {

@@ -33,6 +33,19 @@ class FadeTest extends WakeUpManagerTestCase
         $this->assertLessThanOrEqual(30 * 1000, $this->call($manager, 'GetTimerInterval', 'WakeUpTimer'));
     }
 
+    public function testTileShowsRunningFadeAndEndWakeUpStopsIt(): void
+    {
+        $manager = $this->startedManager();
+        $fade = $this->fades($manager)['M'];
+
+        $running = json_decode($this->call($manager, 'GetTileState'), true)['running'];
+        $this->assertSame([['id' => 'M', 'name' => 'Radio', 'fadeTime' => date('H:i', $fade['Begin'] + $fade['Duration'])]], $running);
+
+        $manager->RequestAction('EndWakeUp', '');
+        $this->assertSame([], $this->fades($manager));
+        $this->assertSame([], json_decode($this->call($manager, 'GetTileState'), true)['running']);
+    }
+
     public function testStepsRaiseTheVolumeUntilTheTarget(): void
     {
         $manager = $this->startedManager();
