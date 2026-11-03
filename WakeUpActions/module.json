@@ -4,7 +4,6 @@
     "type": 3,
     "vendor": "WakeUpManager",
     "aliases": [
-        "Weckaktionen",
         "Wake-up Actions"
     ],
     "url": "https://github.com/Loerdy/symcon-wakeupmanager",

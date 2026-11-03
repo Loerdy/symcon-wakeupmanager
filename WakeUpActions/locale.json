@@ -1,6 +1,7 @@
 {
     "translations": {
         "de": {
+            "Wake-up Actions": "Weckaktionen",
             "Central actions for all alarm clocks, by group. Each alarm clock selects which actions are executed.": "Zentrale Aktionen für alle Wecker, nach Gruppen. In jedem Wecker wird ausgewählt, welche Aktionen ausgeführt werden.",
             "Lights": "Lampen",
             "Shutters": "Rollläden",

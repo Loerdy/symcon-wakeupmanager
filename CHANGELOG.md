@@ -10,6 +10,10 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 - **Meldungen zu Mediaplayern:** Start (mit geplantem Ausschaltzeitpunkt), Ausschalten und übersprungenes Ausschalten (Mediaplayer später erneut gestartet) erscheinen als Meldung im Meldungsfenster bzw. in der Logdatei von IP-Symcon. Ein Weckvorgang lässt sich so auch ohne geöffnetes Debug-Fenster nachvollziehen. Ein Start direkt am Gerät bzw. außerhalb der Wecker ist für das Modul nicht erkennbar und verhindert ein geplantes Ausschalten nicht.
 
+### Geändert
+
+- „Instanz hinzufügen“: Je Modul nur noch ein englischer Alias („Alarm Clock“, „Wake-up Actions“) mit deutscher Übersetzung in `locale.json` statt je eines deutschen und englischen Alias, damit jedes Modul nur einmal aufgeführt wird.
+
 ## [1.5.0] - 2026-11-02
 
 Beta.
