@@ -177,17 +177,12 @@
         opacity: 0.5;
     }
 
-    /* Wochentag kurz in der 1x1-Kachel (ca. 151 px), ausgeschrieben ab der nächsten Größe (ca. 309 px) */
-    .compact .day .long {
+    /* Wochentag ausgeschrieben; nur wenn er nicht in die Kachel passt, die Kurzform (setzt das Skript, siehe fitDay) */
+    .compact .day .short, .compact .day.abbreviated .long {
         display: none;
     }
-    @media (min-width: 250px) {
-        .compact .day .short {
-            display: none;
-        }
-        .compact .day .long {
-            display: inline;
-        }
+    .compact .day.abbreviated .short {
+        display: inline;
     }
     .compact .day {
         font-size: min(11cqw, 14cqh);
@@ -796,7 +791,7 @@
         renderStyles();
         renderTemplates();
         if (hasNext) {
-            // Beide Formen; welche sichtbar ist, entscheidet die Kachelbreite (CSS).
+            // Beide Formen; welche sichtbar ist, entscheidet der verfügbare Platz (fitDay).
             const shortDay = document.createElement('span');
             shortDay.className = 'short';
             shortDay.textContent = dayText(state.next, true);
@@ -804,6 +799,7 @@
             longDay.className = 'long';
             longDay.textContent = dayText(state.next, false);
             compactDay.replaceChildren(shortDay, longDay);
+            fitDay();
         } else {
             // Inaktiv ohne weitere Beschriftung; bei aktivem Wecker ohne nächstes Wecken den Grund anzeigen.
             // Die Zeile bleibt (geschütztes Leerzeichen), damit sich die Anzeige nicht verschiebt.
@@ -1443,6 +1439,20 @@
     }
     updateView();
     window.addEventListener('resize', updateView);
+
+    // Ob der ausgeschriebene Wochentag passt, hängt von Kachelgröße, Schrift und Sprache ab; eine feste
+    // Breitenschwelle zeigte in 2x2-Kacheln unnötig die Kurzform. Deshalb tatsächlich messen.
+    function fitDay() {
+        const day = document.getElementById('compactDay');
+        day.classList.remove('abbreviated');
+        if (day.querySelector('.short') !== null && day.scrollWidth > day.clientWidth) {
+            day.classList.add('abbreviated');
+        }
+    }
+    window.addEventListener('resize', fitDay);
+    if (document.fonts) {
+        document.fonts.ready.then(fitDay);
+    }
 
     // Nach Ende einer Eingabe die zwischenzeitlich eingetroffenen Aktualisierungen anzeigen.
     document.addEventListener('focusout', function () {
