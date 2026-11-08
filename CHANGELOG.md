@@ -16,6 +16,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 
 - **Ausgewählte Aktionen jetzt ausführen** verwirft ein geplantes Ausschalten und Fading dieses Weckers für die neu gestarteten Mediaplayer sofort (bisher wurde das Ausschalten erst zum geplanten Zeitpunkt übersprungen).
 - „Instanz hinzufügen“: Je Modul nur noch ein englischer Alias („Alarm Clock“, „Wake-up Actions“) mit deutscher Übersetzung in `locale.json` statt je eines deutschen und englischen Alias, damit jedes Modul nur einmal aufgeführt wird.
+- Kachel (kompakte Ansicht): Der Wochentag wird ausgeschrieben, sobald er in die Kachel passt (z. B. „Dienstag“ statt „Di“ in einer 2×2-Kachel). Die Kurzform erscheint nur noch, wenn der Platz tatsächlich nicht reicht; bisher entschied eine feste Breitenschwelle, die kleinere 2×2-Kacheln nicht erreichten.
 
 ## [1.5.0] - 2026-11-02
 
